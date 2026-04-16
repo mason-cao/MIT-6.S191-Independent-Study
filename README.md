@@ -15,18 +15,17 @@ I'm building this project because I want to move past surface-level ML tutorials
 
 ## Lab Progress
 
-This is my tracker for the official MIT 6.S191 lab sequence and closely related DLI materials.
+This is my tracker for the official MIT 6.S191 software labs.
 
 | Lab | Status |
 | --- | --- |
-| [ ] Intro to Deep Learning / framework fundamentals | In Progress |
-| [ ] Music Generation with RNNs | Planned |
-| [ ] Face Detection with CNNs | Planned |
-| [ ] Deep Reinforcement Learning | Planned |
-| [ ] Debiasing Facial Detection Systems | Planned |
-| [ ] Generative Modeling / sequence and representation experiments | Planned |
+| [x] Software Lab 1: Deep Learning in Python + Music Generation | Complete |
+| [ ] Software Lab 2: Facial Detection Systems | Planned |
+| [ ] Software Lab 3: Fine-Tune an LLM, You Must! | Planned |
 
-I plan to keep updating this as I finish each lab, re-implement sections in PyTorch where useful, and write up the parts that are mathematically interesting or practically non-obvious.
+Lab 1 includes both the PyTorch intro section and the RNN music-generation section, so they are tracked together here.
+
+I plan to keep updating this as I finish each official lab, re-implement sections in PyTorch where useful, and write up the parts that are mathematically interesting or practically non-obvious.
 
 ## Hardware / Setup
 
@@ -35,4 +34,4 @@ All of this is running on a local Ubuntu server. Part of the point of this repo 
 ## Credits
 
 - Official course site: [MIT 6.S191: Introduction to Deep Learning](https://introtodeeplearning.com/)
-- Official labs/materials: [aamini/introtodeeplearning](https://github.com/aamini/introtodeeplearning)
+- Official labs/materials: [MITDeepLearning/introtodeeplearning](https://github.com/MITDeepLearning/introtodeeplearning)
