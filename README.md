@@ -20,10 +20,11 @@ This is my tracker for the official MIT 6.S191 software labs.
 | Lab | Status |
 | --- | --- |
 | [x] Software Lab 1: Deep Learning in Python + Music Generation | Complete |
-| [ ] Software Lab 2: Facial Detection Systems | Planned |
+| [ ] Software Lab 2: Facial Detection Systems | In progress: started MNIST/CNN shape mechanics |
 | [ ] Software Lab 3: Fine-Tune an LLM, You Must! | Planned |
 
 Lab 1 includes both the PyTorch intro section and the RNN music-generation section, so they are tracked together here.
+Lab 2 is only started so far; I have not trained the real MNIST model or moved into the debiasing facial-detection section yet.
 
 I plan to keep updating this as I finish each official lab, re-implement sections in PyTorch where useful, and write up the parts that are mathematically interesting or practically non-obvious.
 

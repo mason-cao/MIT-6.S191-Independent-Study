@@ -270,3 +270,40 @@ What still matters when I actually run it on the Ubuntu box:
 - train the LSTM long enough to get usable ABC output
 - check whether the generated text contains complete song snippets
 - render one generated song to audio with `abc2midi` + `timidity`
+
+## Lab 2
+
+Lab 2 moves from sequence modeling into computer vision.
+
+The official PyTorch path is split into:
+
+- Part 1: MNIST digit classification
+- Part 2: facial detection and debiasing
+
+I am starting with Part 1, but only the mechanics for now. The main thing I want
+to understand before training is how image-shaped tensors move through a CNN.
+
+### First Concepts To Keep Straight
+
+- images are represented as `(batch, channels, height, width)` in PyTorch
+- MNIST images are grayscale, so the channel count starts at `1`
+- a convolution learns local pattern detectors and outputs multiple feature maps
+- max pooling reduces spatial size, which makes later layers cheaper
+- the convolutional feature map has to be flattened before the fully connected classifier
+- the final layer should output 10 logits, one for each digit class
+- `CrossEntropyLoss` wants logits, not softmax probabilities
+
+### Shape Path In The Starter CNN
+
+For a synthetic MNIST-like batch shaped `(8, 1, 28, 28)`:
+
+- `conv1`, 1 -> 24 channels with a 3x3 kernel: `(8, 24, 26, 26)`
+- `pool1`, 2x2 max pooling: `(8, 24, 13, 13)`
+- `conv2`, 24 -> 36 channels with a 3x3 kernel: `(8, 36, 11, 11)`
+- `pool2`, 2x2 max pooling: `(8, 36, 5, 5)`
+- flatten: `(8, 900)`
+- classifier head: `(8, 10)`
+
+This is enough for today. Next time, I should load real MNIST with
+`torchvision`, train the fully connected baseline, and then train the CNN so I
+can compare how much convolution helps.
