@@ -218,6 +218,226 @@ That is a useful progression to remember:
 - RNNs for ordered sequences
 - attention / transformer ideas for better long-range modeling and parallelism
 
+## Lecture 3: Deep Computer Vision
+
+Lecture 3 shifts from sequences to images. The big framing question is: how can a
+model look at raw pixels and recover useful structure about the world?
+
+The lecture's simplest definition of vision is close to "what is where":
+
+- what objects, people, lanes, signs, tumors, or digits are present
+- where they are located in the image
+- how they relate spatially to each other
+- sometimes, what is likely to happen next
+
+That last part matters for examples like driving. A visual system is not only
+labeling pixels; it may need to predict motion, risk, or a future action.
+
+### What Computers See
+
+Images are numerical arrays.
+
+- grayscale image: one value per pixel, so shape is basically `(height, width)`
+- RGB image: three values per pixel, so shape is `(height, width, channels)`
+- PyTorch convention for batches: `(batch, channels, height, width)`
+- MNIST example: `(batch, 1, 28, 28)` because every digit is a 28x28 grayscale image
+
+Important reminder:
+
+- the network does not receive the idea of a "digit" or "face"
+- it receives pixel intensities
+- all semantic structure has to be learned from patterns in those numbers
+
+This is why computer vision is a good test case for deep learning. The raw input
+is low-level and high-dimensional, but the desired output can be very semantic:
+digit identity, face/non-face, object box, steering angle, disease label, etc.
+
+### Why Fully Connected Layers Are Not Enough For Images
+
+I can technically flatten an image and feed it into a dense network:
+
+- MNIST: `28 * 28 = 784` input features
+- first dense layer with 128 hidden units: `784 * 128` weights before counting bias
+
+That works for a small dataset like MNIST, but it is not the right inductive bias
+for general images.
+
+Problems with flattening:
+
+- it destroys the explicit 2D neighborhood structure
+- nearby pixels are treated the same as far-away pixels
+- the same local feature in two different places needs to be relearned separately
+- parameter count grows quickly as image size increases
+
+The lecture's answer is convolution: learn local feature detectors and reuse the
+same detector across the whole image.
+
+### From Hand-Engineered Features To Learned Features
+
+Older computer vision pipelines depended heavily on manual feature extraction:
+
+- decide which patterns matter
+- compute those features from the image
+- pass the features into a classifier
+
+Deep learning changes this pipeline. Instead of hand-writing edge, corner, or
+texture detectors, a CNN learns useful feature detectors directly from data.
+
+The hierarchy idea is important:
+
+- early layers tend to detect simple local patterns like edges or corners
+- middle layers can combine these into textures or parts
+- deeper layers can represent more task-specific object structure
+
+This connects back to Lecture 1: training is still "choose model, define loss,
+optimize parameters." The difference is that the model architecture is now built
+to respect the spatial structure of images.
+
+### Convolution Operation
+
+A convolution layer applies learned filters over local neighborhoods.
+
+Useful terms:
+
+- kernel/filter: small learned weight matrix, often `3x3` or `5x5`
+- receptive field: the local input region that affects one output value
+- feature map: the output produced by one learned filter across the image
+- channels: stacked feature maps
+- stride: how far the filter moves each step
+- padding: extra border pixels added so spatial size can be controlled
+
+Shape formula for one spatial dimension:
+
+`output_size = floor((input_size + 2 * padding - kernel_size) / stride) + 1`
+
+Applying this to the starter Lab 2 CNN:
+
+- input width/height is `28`
+- `3x3` convolution, stride `1`, padding `0`
+- output size is `floor((28 + 0 - 3) / 1) + 1 = 26`
+
+That matches the shape path I checked in the code: `(batch, 1, 28, 28)` becomes
+`(batch, 24, 26, 26)` after the first convolution.
+
+### Why Convolutions Help
+
+The main advantages are:
+
+- local connectivity: the model starts by looking at nearby pixels together
+- parameter sharing: the same filter is reused at every image location
+- translation handling: a feature can be detected even if it appears somewhere else
+- compositionality: deeper layers combine lower-level features into richer ones
+
+This is a better fit for images than treating every pixel as unrelated input.
+
+### Nonlinearity And Pooling
+
+A typical CNN block is:
+
+`convolution -> nonlinearity -> pooling`
+
+ReLU:
+
+- keeps positive activations
+- zeros out negative activations
+- lets the network compose nonlinear functions instead of only linear filters
+
+Pooling:
+
+- reduces spatial size
+- keeps a summary of local neighborhoods
+- lowers compute and memory cost
+- gives some robustness to small shifts in the input
+
+Max pooling keeps the strongest activation in a local window. For image features,
+that often means "did this feature show up somewhere in this small region?"
+
+### CNN Architecture Pattern
+
+The common pattern from the lecture:
+
+- feature extractor: repeated convolution / activation / pooling layers
+- classifier or task head: fully connected layers, softmax/logits, regression head, etc.
+
+For MNIST:
+
+- the feature extractor learns visual patterns useful for recognizing digits
+- the head maps the extracted features to 10 digit logits
+
+For other tasks:
+
+- classification head: one label for the whole image
+- regression head: continuous value, like steering angle
+- detection head: object class plus bounding box coordinates
+- segmentation head: label per pixel or region
+
+The important mental model is modularity. CNNs are not only "image classifiers";
+the convolutional backbone extracts spatial features, and the head determines the
+task.
+
+### Object Detection
+
+Classification answers: "what is in this image?"
+
+Detection has to answer more:
+
+- what objects are present
+- where each object is located
+- possibly how confident the model is for each object
+
+That means the output cannot just be one class vector. It needs localization
+information, usually bounding boxes, plus class predictions.
+
+This is the point where the loss function becomes more complex:
+
+- classification loss for object identity
+- regression-style loss for box coordinates
+- sometimes additional terms for objectness / confidence
+
+The lecture's broader point: the same deep learning pipeline can support many
+vision tasks, but the output representation and loss have to match the task.
+
+### Applications To Keep In Mind
+
+The lecture uses computer vision examples to show why this is not just a toy
+problem:
+
+- medical imaging: detecting disease patterns from scans
+- facial detection/recognition: finding and identifying faces
+- autonomous driving: mapping visual input to driving decisions
+- mobile photography: visual processing embedded into everyday devices
+
+The uncomfortable part, which connects directly to Lab 2, is that high accuracy
+is not enough. If the training data is biased or under-represents some groups,
+the model can perform unevenly across those groups even if the average metric
+looks good.
+
+### How Lecture 3 Sets Up Lab 2
+
+Lab 2 starts with MNIST because it is a controlled way to practice image
+classification:
+
+- image tensors
+- flattening vs convolution
+- logits over classes
+- cross entropy
+- train/test accuracy
+
+Then it moves to facial detection and bias:
+
+- the task changes from 10-way digit classification to face/non-face detection
+- the social stakes are higher
+- evaluation has to care about subgroup performance, not only average accuracy
+- debiasing requires thinking about data distribution, not only model architecture
+
+My current stopping point should be before the full training run:
+
+- understand shapes
+- inspect a real or synthetic batch
+- define the baseline model carefully
+- do not claim Lab 2 is complete until I train and evaluate both the MNIST models
+  and the facial detection/debiasing section
+
 ## Lab 1
 
 Lab 1 makes a lot more sense after Lecture 1 and Lecture 2.
