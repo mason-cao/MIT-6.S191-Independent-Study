@@ -14,7 +14,10 @@ just a pile of copied notebook cells.
   MNIST-like image tensors.
 - Added a second script that inspects one MNIST-shaped batch and the fully
   connected baseline's forward pass without training it.
-- Expanded the main course notes with Lecture 3 computer vision notes.
+- Added a third script that checks evaluation metrics for randomly initialized
+  dense and convolutional MNIST models without training either model.
+- Expanded the main course notes with more detailed Lecture 3 computer vision
+  notes and early Lab 2 reading notes.
 - Intentionally did not start the full dataset training or debiasing sections yet.
 
 ## What I Want To Understand First
@@ -28,13 +31,17 @@ just a pile of copied notebook cells.
 - How to compare baseline and CNN results without mixing up train accuracy,
   test accuracy, and loss.
 - Why `CrossEntropyLoss` expects raw logits instead of probabilities.
+- How to run evaluation with `model.eval()` and `torch.inference_mode()`.
+- How a confusion matrix can show which classes are being mixed up instead of
+  hiding everything inside one accuracy number.
 
 ## Next Small Step
 
-Run the new batch probe against the real MNIST dataset with `torchvision`, then
-train the fully connected baseline for a small number of epochs. After that, I
-should train the CNN and compare test accuracy, loss, and the effect of keeping
-spatial structure before flattening.
+Run the batch and evaluation probes against the real MNIST dataset with
+`torchvision`, then train the fully connected baseline for a small number of
+epochs. After that, I should train the CNN and compare test accuracy, loss, the
+confusion matrices, and the effect of keeping spatial structure before
+flattening.
 
 I am stopping before that training step for now so this repo does not pretend
 Lab 2 is done.
@@ -46,3 +53,6 @@ Lab 2 is done.
 - `02_mnist_batch_and_baseline_probe.py`: synthetic by default, with an optional
   real MNIST mode; focused on DataLoader batch shape, a two-layer dense baseline,
   logits, and one forward-pass loss.
+- `03_mnist_evaluation_probe.py`: synthetic by default, with an optional real
+  MNIST mode; focused on `eval()` mode, no-gradient evaluation, loss, accuracy,
+  and confusion-matrix plumbing for untrained dense and CNN models.
