@@ -438,6 +438,210 @@ My current stopping point should be before the full training run:
 - do not claim Lab 2 is complete until I train and evaluate both the MNIST models
   and the facial detection/debiasing section
 
+### Lecture 3 Follow-Up: Details I Should Not Skip
+
+After going back through the current Lecture 3 material and the beginning of
+the official Lab 2 notebook, the most important thing is that the lecture is not
+only saying "CNNs work better for images." It is giving a reason why the
+architecture matches the structure of the data.
+
+Images have two kinds of structure at the same time:
+
+- local structure: neighboring pixels usually matter together
+- global structure: the whole object or scene is built from many local patterns
+
+A fully connected layer ignores the local structure when it flattens the image.
+Flattening is not "wrong" mathematically, but it removes the explicit 2D
+arrangement before the model has learned any visual features. A CNN delays that
+flattening step. It first learns filters that slide over the image, so a useful
+local detector can be reused at many positions.
+
+That makes the convolution layer a stronger prior for images:
+
+- each filter has a small receptive field
+- the same filter weights are shared across spatial locations
+- multiple filters create multiple feature maps
+- early filters can respond to simple features
+- deeper layers combine earlier features into more semantic representations
+
+The parameter-sharing point is especially important. If a vertical edge matters
+for a digit, the model should not need a totally separate detector for "vertical
+edge in the top left" and "vertical edge in the bottom right." Convolution gives
+the model a way to learn the detector once and apply it everywhere.
+
+### Convolution Shapes And Parameter Counts
+
+For PyTorch, a 2D convolution weight tensor has the conceptual shape:
+
+`(out_channels, in_channels, kernel_height, kernel_width)`
+
+So a layer with `in_channels=1`, `out_channels=24`, and a `3x3` kernel has:
+
+- `24 * 1 * 3 * 3 = 216` kernel weights
+- plus `24` bias terms if bias is enabled
+- `240` trainable parameters total
+
+That is much smaller than connecting every input pixel to every output location
+with independent weights. The spatial output is still large, but the learned
+filter parameters are shared.
+
+The spatial size formula is still:
+
+`output_size = floor((input_size + 2 * padding - kernel_size) / stride) + 1`
+
+The design choices mean:
+
+- larger kernels see more context but add parameters
+- stride greater than 1 skips positions and shrinks the output
+- padding can preserve edge information and control output size
+- more output channels means more learned feature types
+
+I should treat shape math as part of model design, not as bookkeeping after the
+fact. If I cannot predict the shape before running the model, I probably do not
+understand the architecture yet.
+
+### Pooling Is A Tradeoff
+
+Max pooling is not just "make the tensor smaller." The lecture motivation is
+closer to: keep the strongest local evidence that a feature appeared somewhere
+nearby.
+
+Benefits:
+
+- reduces spatial resolution
+- lowers compute in later layers
+- gives some tolerance to small shifts
+- makes the next layer work with more compact feature maps
+
+Cost:
+
+- discards exact location information inside the pooling window
+- can remove weak but meaningful evidence
+- makes dense prediction tasks harder if used too aggressively
+
+For MNIST classification, this tradeoff is fine because I only need one digit
+label for the whole image. For segmentation or precise localization, I would
+need to be more careful because the output needs spatial detail.
+
+### Classification, Detection, And Segmentation
+
+Lecture 3 separates several computer vision tasks that are easy to confuse:
+
+- classification: assign one label or class distribution to the whole image
+- regression: predict a continuous value from the image
+- object detection: predict both object classes and object locations
+- segmentation: assign labels at the pixel or region level
+
+This matters because the network head and loss function must match the task.
+
+For MNIST classification:
+
+- input: image tensor
+- output: 10 logits
+- label: integer digit class
+- loss: multiclass cross entropy
+
+For face detection:
+
+- input: image tensor
+- output: face / not-face score
+- label: binary class
+- loss: binary classification loss, often logits plus sigmoid-aware loss
+
+For object detection:
+
+- output has to include class information and bounding-box information
+- loss usually combines classification terms and coordinate-regression terms
+
+For segmentation:
+
+- output has to preserve spatial layout
+- loss is often computed across pixels or regions
+
+This is one of the clearer lecture-to-lab bridges: changing the task changes the
+meaning of the final layer. The convolutional backbone extracts visual features,
+but the head determines what question the model is answering.
+
+### Lab 2 Part 1: What The Official Notebook Is Asking Me To Learn
+
+The official PyTorch MNIST section uses the MNIST dataset as the first controlled
+vision task:
+
+- `60,000` training images
+- `10,000` test images
+- grayscale `28x28` handwritten digits
+- classes `0` through `9`
+
+The sequence of ideas is:
+
+1. Load image-label pairs as a dataset.
+2. Use a `DataLoader` to create batches.
+3. Train a fully connected baseline.
+4. Evaluate on held-out test data.
+5. Build a CNN with convolution and pooling.
+6. Compare the CNN against the dense baseline.
+
+My repo is still before the real training step. The scripts so far only check
+shape mechanics, model definitions, and forward/evaluation plumbing.
+
+Implementation reminders:
+
+- `transforms.ToTensor()` converts PIL images to tensors and scales pixel values
+  to `[0, 1]`
+- `nn.Flatten()` changes `(batch, 1, 28, 28)` into `(batch, 784)`
+- `nn.Linear(28 * 28, 128)` is the first dense baseline layer
+- the final MNIST layer should output 10 logits
+- `nn.CrossEntropyLoss()` expects raw logits, not softmax probabilities
+- use `model.train()` when optimizing and `model.eval()` when evaluating
+- use `torch.no_grad()` or `torch.inference_mode()` during evaluation
+
+Important distinction:
+
+- logits are the model's raw class scores
+- probabilities are useful for display after applying softmax
+- the loss should receive logits directly
+
+If I add softmax before `CrossEntropyLoss`, I am making optimization worse and
+also mixing up model output with presentation output.
+
+### Lab 2 Part 2: Reading Ahead Without Implementing Yet
+
+The facial detection part raises a different issue from MNIST. MNIST asks:
+"Can the model classify digits?" The face detection section asks a more applied
+question: "Does the model work evenly across different groups?"
+
+The official lab frames the data this way:
+
+- positive training examples: face images, from CelebA
+- negative training examples: non-face images, from ImageNet
+- test set: face examples arranged for subgroup evaluation
+- subgroup axes include skin tone and gender labels
+
+The main concept is latent structure. Some important factors in a face image are
+not necessarily explicit labels in the training loop:
+
+- skin tone
+- pose
+- illumination
+- occlusion
+- background
+- camera quality
+
+A classifier can look strong on average while still failing for underrepresented
+parts of the data distribution. That is why average accuracy is not enough for
+this part of the lab.
+
+The debiasing idea I need to understand before coding it:
+
+- train a model that also learns a latent representation of the face data
+- estimate which regions of latent space are underrepresented
+- resample training examples so rare regions are seen more often
+- evaluate subgroup performance, not just overall accuracy
+
+I am not implementing DB-VAE yet. For now, I only want the MNIST evaluation
+plumbing to be clean enough that later comparisons between baseline, CNN, and
+debiased facial models are not confused by bad metric code.
+
 ## Lab 1
 
 Lab 1 makes a lot more sense after Lecture 1 and Lecture 2.
@@ -525,5 +729,6 @@ For a synthetic MNIST-like batch shaped `(8, 1, 28, 28)`:
 - classifier head: `(8, 10)`
 
 This is enough for today. Next time, I should load real MNIST with
-`torchvision`, train the fully connected baseline, and then train the CNN so I
-can compare how much convolution helps.
+`torchvision`, run the evaluation plumbing on a small held-out batch, train the
+fully connected baseline, and then train the CNN so I can compare how much
+convolution helps.
