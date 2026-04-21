@@ -430,13 +430,17 @@ Then it moves to facial detection and bias:
 - evaluation has to care about subgroup performance, not only average accuracy
 - debiasing requires thinking about data distribution, not only model architecture
 
-My current stopping point should be before the full training run:
+My original stopping point was before the full training run:
 
 - understand shapes
 - inspect a real or synthetic batch
 - define the baseline model carefully
-- do not claim Lab 2 is complete until I train and evaluate both the MNIST models
-  and the facial detection/debiasing section
+- hold off on marking Lab 2 complete until I train/evaluate the MNIST models
+  and implement the facial detection/debiasing mechanics
+
+That stopping point has now been cleared for the local repo. The only remaining
+caveat is that real CelebA/ImageNet/PPB numbers require the official dataset
+path and a GPU-backed run.
 
 ### Lecture 3 Follow-Up: Details I Should Not Skip
 
@@ -581,8 +585,9 @@ The sequence of ideas is:
 5. Build a CNN with convolution and pooling.
 6. Compare the CNN against the dense baseline.
 
-My repo is still before the real training step. The scripts so far only check
-shape mechanics, model definitions, and forward/evaluation plumbing.
+My repo now has this whole sequence represented. The first three Lab 2 scripts
+build up the mechanics slowly, and `04_mnist_training_comparison.py` performs
+the actual training comparison between the dense baseline and the CNN.
 
 Implementation reminders:
 
@@ -604,7 +609,7 @@ Important distinction:
 If I add softmax before `CrossEntropyLoss`, I am making optimization worse and
 also mixing up model output with presentation output.
 
-### Lab 2 Part 2: Reading Ahead Without Implementing Yet
+### Lab 2 Part 2: Facial Detection And Debiasing
 
 The facial detection part raises a different issue from MNIST. MNIST asks:
 "Can the model classify digits?" The face detection section asks a more applied
@@ -638,9 +643,204 @@ The debiasing idea I need to understand before coding it:
 - resample training examples so rare regions are seen more often
 - evaluate subgroup performance, not just overall accuracy
 
-I am not implementing DB-VAE yet. For now, I only want the MNIST evaluation
-plumbing to be clean enough that later comparisons between baseline, CNN, and
-debiased facial models are not confused by bad metric code.
+This is now represented locally in `05_facial_debiasing_mechanics.py`. The
+script does not download CelebA/ImageNet/PPB, so I should not treat its numbers
+as real fairness results. It does check the moving parts that matter for the
+official lab: binary CNN logits, `BCEWithLogitsLoss`, grouped face-probability
+evaluation, VAE reconstruction/KL losses, reparameterization, and adaptive
+resampling over latent variables.
+
+## Lecture 4: Deep Generative Modeling
+
+Lecture 4 matters for Lab 2 because the facial debiasing section is not only a
+computer vision classifier. It uses a generative model, specifically a VAE, to
+learn hidden structure in the face data and then uses that structure to change
+the sampling distribution during training.
+
+### Generative Vs. Discriminative Modeling
+
+The discriminative models from Lectures 1-3 learn a mapping from input to label:
+
+- digit image -> digit class
+- face image -> face/not-face
+- sequence prefix -> next token
+
+Generative modeling asks a different kind of question. Instead of only learning
+`p(y | x)`, the model tries to learn something about the data distribution
+itself. The model should be able to represent what valid examples look like,
+sample new examples, or reconstruct an input through a compressed latent code.
+
+This changes the mental model:
+
+- classifier: "what label should this input get?"
+- generator: "what kind of data could have produced this example?"
+- representation learner: "what latent factors explain variation in this data?"
+
+That last framing is exactly the bridge to DB-VAE. The facial detection lab
+cares about hidden factors like skin tone, pose, lighting, occlusion, and camera
+quality because those factors can be unevenly represented in the training data.
+
+### Autoencoders
+
+An autoencoder has two main pieces:
+
+- encoder: maps input `x` into a lower-dimensional representation `z`
+- decoder: maps `z` back into a reconstruction `x_hat`
+
+The basic training objective is reconstruction quality. If the reconstruction is
+close to the original input, the latent code must have preserved useful
+information.
+
+Important detail:
+
+- the model is not given labels for the latent variables
+- the structure is learned from the need to compress and reconstruct examples
+- the latent space can become useful even when no one manually annotated every
+  factor of variation
+
+For images, the encoder is often convolutional because it has to extract visual
+features, and the decoder often uses upsampling or transposed convolutions to
+turn latent vectors back into image-shaped tensors.
+
+### Why Plain Autoencoders Are Not Enough
+
+A regular autoencoder can learn compressed codes, but its latent space is not
+automatically organized in a way that supports sampling. Two nearby points may
+not necessarily decode to two similar, realistic images. There may be gaps or
+irregular regions where the decoder has not learned meaningful outputs.
+
+For generative modeling, I need a latent space with a useful distribution:
+
+- I should be able to sample a latent vector and decode it
+- nearby latent vectors should often correspond to related examples
+- the latent space should not become a scattered lookup table
+
+This is where variational autoencoders come in.
+
+### Variational Autoencoders
+
+A VAE changes the encoder output. Instead of producing one deterministic vector,
+the encoder predicts parameters of a distribution:
+
+- mean vector `mu`
+- log variance or log standard deviation vector, depending on implementation
+
+Then the model samples a latent vector `z` from that distribution and decodes
+`z` into a reconstruction.
+
+The VAE objective has two pressures:
+
+- reconstruction loss: make `x_hat` close to `x`
+- latent regularization: make the learned latent distribution stay close to a
+  simple prior, usually a unit Gaussian
+
+In my PyTorch script, I wrote the per-example VAE loss as:
+
+`L_VAE = reconstruction_loss + c * L_KL`
+
+where:
+
+- reconstruction loss is mean absolute pixel difference
+- `L_KL` penalizes the learned latent distribution for drifting away from the
+  Gaussian prior
+- `c` is a small coefficient controlling how strongly the latent space is
+  regularized
+
+This is the key tradeoff:
+
+- too little KL pressure: reconstructions may improve, but the latent space can
+  become messy
+- too much KL pressure: the latent space is regularized, but reconstructions may
+  lose detail
+
+### Reparameterization Trick
+
+The sampling step seems like it would break backpropagation because random
+sampling is not a normal deterministic layer. The reparameterization trick fixes
+that by separating the randomness from the learned parameters.
+
+Instead of sampling directly in an opaque way, the model samples noise:
+
+`epsilon ~ N(0, I)`
+
+and computes:
+
+`z = mu + exp(0.5 * logsigma) * epsilon`
+
+The random part is `epsilon`, while `mu` and `logsigma` are still part of a
+differentiable computation. That means gradients can flow back into the encoder.
+
+This is one of those ideas that is easy to memorize but more useful to
+understand mechanically:
+
+- the encoder controls the location and spread of the latent distribution
+- randomness gives the model a sampled latent code during training
+- the algebra keeps the sampled code differentiable with respect to encoder
+  outputs
+
+### DB-VAE Connection
+
+The debiasing VAE in Lab 2 modifies the normal VAE setup because it also has to
+solve a supervised binary classification task.
+
+The encoder outputs:
+
+- `y_logit`: supervised face/not-face prediction
+- `z_mean`: mean of the unsupervised latent distribution
+- `z_logsigma`: spread of the unsupervised latent distribution
+
+The decoder reconstructs the image from a sampled latent vector. The important
+detail from the lab is that the VAE reconstruction/latent loss is only applied
+to face examples. Non-face examples still train the classifier, but the model is
+not trying to learn the latent structure of "all non-faces." The debiasing
+target is variation within the face class.
+
+The total DB-VAE loss can be thought of as:
+
+`classification loss + face_indicator * VAE loss`
+
+where `face_indicator` is `1` for face examples and `0` for non-face examples.
+
+That design makes sense:
+
+- every example helps train face/not-face classification
+- only face examples shape the latent space used for debiasing
+- the learned latent space is then used to find underrepresented face features
+
+### Adaptive Resampling
+
+The resampling procedure is the most important algorithmic idea in the lab.
+
+The DB-VAE estimates latent variables for face images. For each latent dimension,
+the training examples can be binned into a histogram. Dense bins correspond to
+features that appear often in the training set. Sparse bins correspond to rarer
+latent regions.
+
+The lab's strategy is:
+
+1. Encode face images into latent means.
+2. Estimate how densely each latent region is represented.
+3. Assign higher sampling probability to examples in sparse regions.
+4. Train future batches with this updated sampling distribution.
+
+This is not the same as simply balancing class labels. The face/not-face classes
+could be balanced while the face class is still internally skewed toward certain
+skin tones, poses, lighting conditions, or occlusions.
+
+What I like about the method:
+
+- it does not require manually labeling every latent factor
+- it can respond to hidden structure inside a class
+- it integrates debiasing into the training loop instead of only post-processing
+  outputs
+
+What I should be careful about:
+
+- a learned latent space is not automatically fair or interpretable
+- resampling can trade off subgroup performance against other metrics
+- the evaluation still needs a balanced, labeled test set across the sensitive
+  categories I care about
+- synthetic smoke tests prove the code path, not real-world fairness
 
 ## Lab 1
 
@@ -697,15 +897,24 @@ What still matters when I actually run it on the Ubuntu box:
 
 ## Lab 2
 
-Lab 2 moves from sequence modeling into computer vision.
+Lab 2 moves from sequence modeling into computer vision and then into a more
+applied question: what happens when a model performs well on average but unevenly
+across groups?
 
 The official PyTorch path is split into:
 
 - Part 1: MNIST digit classification
 - Part 2: facial detection and debiasing
 
-I am starting with Part 1, but only the mechanics for now. The main thing I want
-to understand before training is how image-shaped tensors move through a CNN.
+I finished the local pass through both parts. The repo does not contain the
+large official face datasets, so "finished" here means:
+
+- the MNIST section has runnable training/evaluation code
+- the facial detection section has runnable synthetic mechanics code
+- the notes cover the official lab flow, loss functions, VAE pieces, and
+  subgroup evaluation logic
+- I am not claiming a real CelebA/ImageNet/PPB fairness result from the local
+  synthetic run
 
 ### First Concepts To Keep Straight
 
@@ -716,6 +925,10 @@ to understand before training is how image-shaped tensors move through a CNN.
 - the convolutional feature map has to be flattened before the fully connected classifier
 - the final layer should output 10 logits, one for each digit class
 - `CrossEntropyLoss` wants logits, not softmax probabilities
+- binary face detection uses one logit and `BCEWithLogitsLoss`
+- `model.train()` and `model.eval()` matter because layers like batch norm behave
+  differently in training and inference
+- fairness evaluation needs subgroup metrics, not just one average accuracy
 
 ### Shape Path In The Starter CNN
 
@@ -728,7 +941,106 @@ For a synthetic MNIST-like batch shaped `(8, 1, 28, 28)`:
 - flatten: `(8, 900)`
 - classifier head: `(8, 10)`
 
-This is enough for today. Next time, I should load real MNIST with
-`torchvision`, run the evaluation plumbing on a small held-out batch, train the
-fully connected baseline, and then train the CNN so I can compare how much
-convolution helps.
+This shape path is the reason the first fully connected layer after flattening
+is `nn.Linear(36 * 5 * 5, 128)`.
+
+### Part 1 Completion: MNIST Training Comparison
+
+The fourth Lab 2 script is the first one that actually trains models:
+
+`labs/lab2_facial_detection_systems/scripts/04_mnist_training_comparison.py`
+
+It compares:
+
+- fully connected baseline: flatten -> linear 784 to 128 -> ReLU -> linear 128
+  to 10
+- CNN: conv/pool -> conv/pool -> flatten -> dense head
+
+The important implementation pieces:
+
+- use `DataLoader` for minibatches
+- use `CrossEntropyLoss` on raw logits
+- use `optimizer.zero_grad()`, `loss.backward()`, `optimizer.step()`
+- accumulate train loss and train accuracy by number of examples, not just by
+  number of batches
+- switch to `model.eval()` and `torch.inference_mode()` for held-out evaluation
+- compute a confusion matrix with rows as true labels and columns as predictions
+
+The script defaults to a synthetic seven-segment digit dataset so it can run
+offline. That is useful for checking the training loop, but the real lab result
+should be run with:
+
+`--source mnist --download`
+
+The main conceptual result I expect from real MNIST:
+
+- the dense baseline should already do well because MNIST is simple
+- the CNN should be a better architectural fit because it preserves local image
+  structure before flattening
+- the gap is not just about parameter count; it is about inductive bias
+
+### Part 2 Completion: Facial Detection And Bias
+
+The fifth Lab 2 script is:
+
+`labs/lab2_facial_detection_systems/scripts/05_facial_debiasing_mechanics.py`
+
+It implements the moving parts from the facial detection section:
+
+- standard CNN binary classifier
+- sigmoid probabilities only for interpretation, not as a separate training
+  layer before the loss
+- grouped evaluation over four test groups in the style of the official lab
+- VAE encoder outputs for `y_logit`, `z_mean`, and `z_logsigma`
+- decoder reconstruction from sampled latent variables
+- DB-VAE loss with classification loss for all examples and VAE loss only for
+  face examples
+- inverse-density sampling over latent variables to upweight rare regions
+
+The official lab's data setup:
+
+- positive examples: CelebA faces
+- negative examples: ImageNet non-face images
+- test examples: balanced face groups for comparing subgroup performance
+- groups: light/dark skin tone crossed with gender labels
+
+The local script creates synthetic examples instead. This is realistic for this
+repo because downloading the official datasets and training the full model is a
+separate GPU/Colab job. The synthetic run verifies that the code path connects:
+forward pass, loss, reparameterization, reconstruction, sampling probabilities,
+and group summaries.
+
+### What I Learned From Finishing Lab 2
+
+Computer vision is not just "use CNNs." The architecture, loss, and evaluation
+metric have to match the question:
+
+- MNIST classification asks for one of ten classes
+- face detection asks for a binary decision
+- debiasing asks whether the binary decision behaves consistently across
+  subgroups
+- VAE-based debiasing asks the model to learn latent structure inside the face
+  class, then use that structure to resample training data
+
+The DB-VAE idea also clarified a useful distinction:
+
+- class imbalance: too many examples of one label compared with another
+- latent imbalance: uneven representation inside a label
+
+The second problem is harder. A dataset can have many face examples and still be
+biased if those examples are concentrated around a narrow set of appearances,
+lighting conditions, poses, or camera qualities.
+
+### Two Manual Commit Points For This Progress
+
+I did not commit automatically. If I commit this work manually, the two realistic
+commit points are:
+
+1. `Finish Lab 2 MNIST training comparison`
+   - Adds the real training/evaluation loop for dense vs CNN MNIST models.
+   - Moves Lab 2 Part 1 from probes to a complete local training comparison.
+
+2. `Finish Lab 2 facial debiasing mechanics and notes`
+   - Adds the local DB-VAE/facial-detection mechanics script.
+   - Expands Lecture 4 and Lab 2 notes enough that future me can explain the
+     method without reopening the notebook immediately.
