@@ -1,11 +1,12 @@
 # Lab 2: Computer Vision and Facial Detection Systems
 
-This folder tracks my start on MIT 6.S191 Software Lab 2.
+This folder tracks my completed local pass through MIT 6.S191 Software Lab 2.
 
-The official lab starts with MNIST digit classification and then moves into facial
-detection, algorithmic bias, and debiasing with a variational autoencoder. I am
-starting slowly here because I want the repo to be useful for review later, not
-just a pile of copied notebook cells.
+The official lab starts with MNIST digit classification and then moves into
+facial detection, algorithmic bias, and debiasing with a variational
+autoencoder. I finished the lab in the style of this repo: small PyTorch scripts
+that make the mechanics explicit, plus notes that explain the lecture/lab ideas
+instead of only copying notebook cells.
 
 ## Current Status
 
@@ -16,35 +17,41 @@ just a pile of copied notebook cells.
   connected baseline's forward pass without training it.
 - Added a third script that checks evaluation metrics for randomly initialized
   dense and convolutional MNIST models without training either model.
-- Expanded the main course notes with more detailed Lecture 3 computer vision
-  notes and early Lab 2 reading notes.
-- Intentionally did not start the full dataset training or debiasing sections yet.
+- Added a fourth script that actually trains and compares the dense MNIST
+  baseline against the CNN.
+- Added a fifth script that implements the local facial detection and DB-VAE
+  mechanics: binary CNN logits, BCE loss, grouped face-probability evaluation,
+  VAE reconstruction/KL loss, reparameterization, and adaptive latent resampling.
+- Expanded the main course notes with detailed Lecture 3, Lecture 4, Lab 2
+  Part 1, and Lab 2 Part 2 notes.
 
-## What I Want To Understand First
+## What Counts As Finished Here
 
-- Why image tensors are usually represented as `(batch, channels, height, width)`.
-- How convolution changes the channel count while preserving or changing spatial
-  dimensions depending on kernel size, stride, and padding.
-- How max pooling reduces spatial resolution.
-- Why the final convolutional feature map has to be flattened before the classifier.
-- What the fully connected MNIST baseline throws away when it flattens pixels.
-- How to compare baseline and CNN results without mixing up train accuracy,
-  test accuracy, and loss.
-- Why `CrossEntropyLoss` expects raw logits instead of probabilities.
-- How to run evaluation with `model.eval()` and `torch.inference_mode()`.
-- How a confusion matrix can show which classes are being mixed up instead of
-  hiding everything inside one accuracy number.
+For this independent-study repo, Lab 2 is now finished as a local implementation
+pass.
 
-## Next Small Step
+The MNIST section can run on either the offline synthetic digit data or the real
+`torchvision` MNIST dataset. The facial detection section uses synthetic images
+by default because the official CelebA/ImageNet/PPB datasets are large and are
+not checked into this repo. That means the facial script is a mechanics check,
+not a claim about real demographic fairness performance.
 
-Run the batch and evaluation probes against the real MNIST dataset with
-`torchvision`, then train the fully connected baseline for a small number of
-epochs. After that, I should train the CNN and compare test accuracy, loss, the
-confusion matrices, and the effect of keeping spatial structure before
-flattening.
+If I want official lab/competition numbers later, the next step is to run the
+official PyTorch notebook on a GPU-backed environment with the real datasets and
+copy the final grouped evaluation into this repo as an experiment note.
 
-I am stopping before that training step for now so this repo does not pretend
-Lab 2 is done.
+## Manual Commit Points
+
+No commits have been created automatically. A realistic split for the current
+work would be:
+
+1. `Finish Lab 2 MNIST training comparison`
+   - `04_mnist_training_comparison.py`
+   - README/course-note updates for MNIST training and evaluation
+
+2. `Finish Lab 2 facial debiasing mechanics and notes`
+   - `05_facial_debiasing_mechanics.py`
+   - DB-VAE, latent resampling, fairness-evaluation, and Lecture 4 notes
 
 ## Scripts
 
@@ -56,3 +63,27 @@ Lab 2 is done.
 - `03_mnist_evaluation_probe.py`: synthetic by default, with an optional real
   MNIST mode; focused on `eval()` mode, no-gradient evaluation, loss, accuracy,
   and confusion-matrix plumbing for untrained dense and CNN models.
+- `04_mnist_training_comparison.py`: trains the dense baseline and CNN, then
+  reports train metrics, held-out accuracy, and confusion matrices.
+- `05_facial_debiasing_mechanics.py`: runs a local synthetic facial-detection
+  and DB-VAE debiasing mechanics pass.
+
+## Useful Commands
+
+Synthetic/offline MNIST training comparison:
+
+```bash
+python labs/lab2_facial_detection_systems/scripts/04_mnist_training_comparison.py
+```
+
+Real MNIST training comparison, after installing `torchvision`:
+
+```bash
+python labs/lab2_facial_detection_systems/scripts/04_mnist_training_comparison.py --source mnist --download
+```
+
+Synthetic/offline facial detection and DB-VAE mechanics:
+
+```bash
+python labs/lab2_facial_detection_systems/scripts/05_facial_debiasing_mechanics.py
+```
