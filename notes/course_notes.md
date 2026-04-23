@@ -842,6 +842,277 @@ What I should be careful about:
   categories I care about
 - synthetic smoke tests prove the code path, not real-world fairness
 
+## Software Lab 3: LLM Fine-Tuning
+
+The current 2026 course site lists Software Lab 3 as "Fine-Tune an LLM, You
+Must!" under the newer-frontiers part of the course. The official lab notebook
+is built around a real LLM stack:
+
+- base model: Liquid AI LFM2-1.2B
+- fine-tuning method: LoRA / parameter-efficient fine-tuning
+- judge model: Gemini 2.5 through OpenRouter
+- evaluation/monitoring: Comet Opik
+
+My repo version is deliberately smaller. I finished a local mechanics pass, not
+the official GPU/API competition path. That distinction matters because the
+official lab is about real LLM behavior at scale, while this repo is checking
+whether I understand the pieces well enough to run and debug the full notebook
+later.
+
+### What The Lab Is Really About
+
+The lab is not only "make a model talk like Yoda." The style task is a concrete
+way to practice modern LLM post-training:
+
+- represent a chat conversation in a fixed template
+- tokenize the template into model-readable IDs
+- load a causal language model
+- generate text by repeatedly predicting the next token
+- fine-tune on instruction/response examples
+- avoid updating every parameter by using LoRA
+- evaluate outputs with a judge model and controls
+- monitor the system once it becomes an application, not just a notebook cell
+
+This connects back to Lecture 2. An LLM is still a sequence model trained to
+predict the next token from previous context. The difference is scale,
+pretraining, and the post-training workflow around the model.
+
+### Chat Templates
+
+A chatbot model needs the conversation to be serialized into text. The official
+lab uses markers that separate user turns from assistant turns. The basic shape
+is:
+
+`start -> user marker -> question -> end marker -> assistant marker -> answer`
+
+The important idea is that the model does not naturally know which span is the
+user question and which span is the assistant answer. The template gives it a
+consistent format.
+
+Why this matters:
+
+- the same user text can mean different things depending on where it appears
+- special tokens mark turn boundaries
+- the assistant marker tells the model where generation should begin
+- fine-tuning examples must match inference-time prompts
+
+If training uses one format and inference uses another, the model can fail even
+if the underlying task is simple.
+
+### Tokenization
+
+Language models do not operate directly on Python strings. The lab emphasizes
+the encode/decode loop:
+
+- encode: text -> token IDs
+- decode: token IDs -> text
+
+Modern LLM tokenizers usually use subword methods such as BPE. That gives a
+middle ground between word-level and character-level tokenization:
+
+- word tokenization can create huge vocabularies and struggles with unseen words
+- character tokenization has a tiny vocabulary but produces long sequences
+- subword tokenization keeps sequence lengths manageable while still handling
+  unfamiliar words as combinations of known pieces
+
+My local script uses a tiny character-level tokenizer but keeps the chat markers
+as atomic special tokens. That is not meant to imitate LFM2's tokenizer exactly.
+It is a way to check the mechanics:
+
+- special markers should survive encode/decode
+- prompt and answer tokens should be distinguishable
+- decoded answers should be readable after skipping special tokens
+
+The first Lab 3 script verified:
+
+- the decoded prompt matched the original prompt
+- the sample supervised example had 165 local tokens
+- 104 of those tokens were in the answer/loss region
+- the first supervised target after shifting was the first character of the
+  assistant answer
+
+### Causal Language Modeling
+
+The official lab uses the same core objective as a normal causal LM:
+
+`predict token[t + 1] from tokens[:t]`
+
+The model outputs logits over the vocabulary at every sequence position. For
+training, the target is the same sequence shifted one step to the left.
+
+Important shape:
+
+- input tokens: all positions except the last
+- target tokens: all positions except the first
+- logits: one vocabulary-sized vector per input position
+
+The loss is cross entropy. This is still classification, just repeated across
+sequence positions. The "classes" are token IDs.
+
+### Why The Answer Mask Matters
+
+In supervised chat fine-tuning, the full string contains both the user prompt and
+the assistant answer. The model needs the prompt as context, but I do not want
+to train it to reproduce the user prompt. I want it to learn the assistant
+response.
+
+So the lab computes a mask:
+
+- prompt tokens: context only
+- answer tokens: contribute to loss
+
+After shifting for next-token prediction, the mask has to shift too. This is a
+small implementation detail, but it is easy to get wrong. If I include prompt
+tokens in the loss, the model spends capacity learning the template and user
+question instead of the desired response behavior.
+
+### Generation
+
+One forward pass predicts only the next token. Longer text is generated by
+feeding sampled tokens back into the model:
+
+1. Format the prompt without an answer.
+2. Encode the prompt.
+3. Predict logits for the next token.
+4. Pick a token by argmax or sampling.
+5. Append that token to the context.
+6. Repeat until an end marker or token limit.
+
+Temperature changes the sampling distribution:
+
+- lower temperature: more deterministic, safer, more repetitive
+- higher temperature: more varied, but easier to derail
+
+The local tiny model shows exposure bias clearly. Under teacher forcing, the
+loss can drop a lot, but free generation on held-out prompts can still become
+messy because every generated mistake becomes part of the next context.
+
+### LoRA
+
+Full fine-tuning updates all model weights. For a billion-parameter model, that
+is expensive in memory and compute. LoRA changes the update strategy.
+
+Instead of changing a large weight matrix directly, LoRA adds a low-rank update:
+
+`W' = W + scale * B A`
+
+where:
+
+- `W` is the frozen pretrained weight matrix
+- `A` and `B` are small trainable matrices
+- the rank of `BA` is much smaller than the original matrix dimensions
+
+The official lab applies LoRA through PEFT to attention and feed-forward
+projection modules such as query, key, value, output, gate, up, and down
+projections.
+
+My local script mirrors the idea:
+
+- first train a tiny base causal LM on plain English answers
+- freeze the base weights
+- train only low-rank adapter parameters on styled answers
+
+The default local run reported roughly:
+
+- total parameters: about 133k
+- LoRA-stage trainable parameters: about 9.7k
+- LoRA-stage trainable percentage: about 7.3%
+
+That is the important qualitative point. The style adaptation stage changes a
+small trainable slice while leaving most of the model fixed.
+
+### Local Fine-Tuning Results
+
+The second script gives a concrete sanity check:
+
+- base plain-answer loss drops substantially
+- LoRA style-tuning loss also drops
+- the generated text becomes somewhat style-biased on seen prompts
+- held-out styled answers still have high loss
+
+This is realistic for a tiny character-level model trained on a tiny dataset.
+It verifies the fine-tuning plumbing, but it is not evidence of a strong model.
+In fact, the rough generations are useful because they make the limitation
+obvious. The official LFM2 run is needed for serious qualitative output.
+
+### LLM As Judge
+
+The official lab uses an LLM-as-judge setup to turn style quality into a score.
+The judge model receives:
+
+- a system prompt that defines the judging role
+- an example of the target style
+- generated text to evaluate
+- instructions to output a numeric score
+
+The key insight is that qualitative outputs need evaluation structure. Looking
+at a few samples is useful, but a repeatable rubric lets me compare:
+
+- base English responses as a negative control
+- true target-style responses as a positive control
+- generated responses from my model
+
+The judge is not automatically correct. The system prompt and rubric can change
+scores. A weak judge can reward superficial markers instead of real style. This
+is why controls matter.
+
+### Opik And Monitoring
+
+The later part of the official lab moves from evaluation in a notebook to
+monitoring a live LLM application. Opik tracing records calls and attaches
+feedback scores, so the same evaluation idea can follow the model after
+deployment.
+
+This is a useful shift in mindset:
+
+- training loss tells me about optimization
+- offline evals tell me about test behavior
+- tracing/monitoring tells me what happens when the model is used as a system
+
+For real LLM applications, the model is only one part. The prompt template,
+judge prompt, API wrapper, tracing, and metric definitions are also part of the
+product.
+
+### Offline Evaluation In This Repo
+
+My third script replaces the API judge with a transparent local rubric. That is
+not as capable as Gemini, but it keeps the evaluation shape:
+
+- score base English controls
+- score target-style controls
+- score generated held-out answers
+- compute held-out target cross entropy
+
+The local evaluator intentionally separates "plumbing works" from "model is
+good." The controls are the important part. If the positive controls do not
+score higher than negative controls, the judge is not useful. If generated
+answers score poorly and held-out loss is high, that is a model limitation, not
+a reason to hide the result.
+
+### What Counts As Finished For My Local Lab 3
+
+I am marking Lab 3 complete in this repo because I now have runnable local
+checks for:
+
+- chat templates
+- tokenization and decoding
+- next-token labels
+- answer masks
+- tiny causal-LM training
+- LoRA-style adapter tuning
+- generation
+- style controls
+- held-out style loss
+
+What remains for a real course/competition submission:
+
+- run the official notebook on a GPU
+- use the real LFM2-1.2B tokenizer and model
+- fill the TODOs against the actual Hugging Face/PEFT APIs
+- use OpenRouter with an API key for the judge model
+- log traces and metrics through Opik
+- submit the notebook/report with the official final likelihood cell
+
 ## Lab 1
 
 Lab 1 makes a lot more sense after Lecture 1 and Lecture 2.
