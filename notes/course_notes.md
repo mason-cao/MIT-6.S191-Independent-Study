@@ -842,6 +842,285 @@ What I should be careful about:
   categories I care about
 - synthetic smoke tests prove the code path, not real-world fairness
 
+## Lecture 5: Deep Reinforcement Learning
+
+Lecture 5 shifts from static datasets to dynamic environments. In the earlier
+lectures, I mostly had a fixed training set and a model that tried to predict a
+label, reconstruct an input, or generate the next token. Reinforcement learning
+changes the setup completely:
+
+- the learner is now an agent that takes actions
+- those actions change what data the agent will see next
+- success is not judged only by the current step, but by future consequences
+- the goal is to maximize reward over time, not just fit one supervised target
+
+The opening slides frame RL as a general way to learn in environments that keep
+changing while the learner interacts with them. The examples span:
+
+- robotics
+- game play and strategy
+- real-world sequential control problems
+- even language-style sequential decision making
+
+That broad framing matters. RL is not "the Atari lecture." Atari is one clean
+example, but the real point is learning how to act when present choices affect
+future states and future opportunities.
+
+### RL Compared To Other Learning Problems
+
+One of the early slides contrasts the three major classes of learning problems.
+This is a useful checkpoint because it explains exactly why RL needs different
+math and different algorithms.
+
+Supervised learning:
+
+- data: `(x, y)`
+- `x` is the input and `y` is the label
+- goal: learn a mapping `x -> y`
+
+Unsupervised learning:
+
+- data: `x`
+- there are no labels
+- goal: learn underlying structure in the data
+
+Reinforcement learning:
+
+- data is built from interaction, especially state-action experience
+- the target is not a fixed label attached to the current example
+- goal: maximize future rewards over many time steps
+
+The apple example from the slide is simple but surprisingly helpful:
+
+- supervised: "this thing is an apple"
+- unsupervised: "this thing is like the other thing"
+- RL: "eat this thing because it will keep you alive"
+
+That last version is fundamentally about consequences. The right action is not
+defined by a human label on the current input. It is defined by what happens
+after the action is taken.
+
+### Agent And Environment
+
+The lecture builds RL from a small loop:
+
+- agent
+- environment
+
+The agent is the learner / decision-maker. The environment is the world the
+agent operates in.
+
+Important distinction from the earlier lectures:
+
+- in supervised learning, the dataset is fixed before learning starts
+- in RL, the agent acts in the environment and partly creates its own future
+  experience
+
+This immediately introduces feedback. The learner is no longer a passive system
+that receives examples. It is an active system whose behavior changes the next
+example distribution.
+
+### Actions
+
+The first outward signal from the agent is the action:
+
+- notation: `a_t`
+- meaning: the move the agent makes at time `t`
+
+The lecture also defines the action space:
+
+- `A` = the set of all actions the agent can take
+
+This is worth keeping explicit because later algorithms depend heavily on
+whether the action space is:
+
+- small and discrete
+- large
+- continuous
+- structured or constrained
+
+For the conceptual slides, the main point is simpler: RL is about choosing
+actions, not only predicting labels.
+
+### Observations And State
+
+After the agent acts, the environment responds. The slides first label this as
+an observation channel back to the agent, then refine it into a next-state
+view:
+
+- observation: what the environment reveals after the action
+- state change: `s_(t+1)`
+
+The slide definition of state is essentially:
+
+- state = the situation the agent perceives
+
+I want to keep the practical interpretation straight:
+
+- the state should contain enough information to support a good next decision
+- the next state depends on both the previous situation and the action taken
+- the RL problem is sequential because the state keeps evolving over time
+
+This is the first major source of difficulty. In a sequence of actions, one
+mistake can push the agent into a much worse future state distribution.
+
+### Reward
+
+The second signal returned by the environment is reward:
+
+- notation: `r_t`
+- definition from the slide: feedback that measures the success or failure of
+  the agent's action
+
+This is one of the most important conceptual differences from supervised
+learning.
+
+- a label says what the answer should be for this example
+- a reward says how good or bad the consequence of an action was
+
+Rewards can also be:
+
+- delayed
+- sparse
+- noisy
+- locally misleading
+
+That means the agent often has to learn from incomplete feedback. A single step
+reward does not necessarily reveal whether the action was globally smart.
+
+### Return: Total Future Reward
+
+The lecture then shifts from immediate reward to total reward, also called the
+return.
+
+The slide writes the total reward from time `t` onward as:
+
+`R_t = sum_(i=t)^infinity r_i`
+
+and then expands it as:
+
+`R_t = r_t + r_(t+1) + ... + r_(t+n) + ...`
+
+This is the quantity the agent actually cares about. The action at time `t`
+should not be judged only by `r_t`, but by how it shapes the whole reward
+stream that follows.
+
+This is the core RL mental model:
+
+- immediate reward can be small while long-term return is large
+- immediate reward can look good while long-term return is terrible
+- planning means acting for return, not just the next reward
+
+### Discounting
+
+Because future rewards can extend far into the future, the lecture introduces a
+discounted return:
+
+`R_t = sum_(i=t)^infinity gamma^i r_i`
+
+with:
+
+- `gamma` = discount factor
+- `0 < gamma < 1`
+
+The slide expansion makes the weighting idea explicit:
+
+- near-term rewards count more
+- farther rewards are progressively down-weighted
+
+The practical reasons for discounting are:
+
+- it keeps infinite-horizon sums controlled
+- it encodes a preference for sooner reward over much later reward
+- it makes learning and optimization more stable than treating all future steps
+  equally forever
+
+At a conceptual level, `gamma` sets the planning horizon:
+
+- small `gamma` -> more short-term behavior
+- `gamma` close to `1` -> more long-horizon behavior
+
+### The Q-Function
+
+Once return is defined, the lecture introduces the Q-function:
+
+`Q(s_t, a_t) = E[R_t | s_t, a_t]`
+
+This is one of the main objects of the whole lecture.
+
+What it means:
+
+- start in state `s_t`
+- take action `a_t`
+- then look at the expected total future reward that follows
+
+So the Q-function measures how good a specific action is in a specific state.
+
+The slide's wording is effectively:
+
+- the Q-function captures the expected total future reward an agent can receive
+  by taking a certain action in a certain state
+
+This is the right way to think about it:
+
+- state alone is not enough
+- action alone is not enough
+- RL needs a value attached to the pair `(state, action)`
+
+### Why Q-Values Are Hard
+
+The Breakout slide makes a good intuitive point: humans are often bad at
+accurately estimating Q-values by inspection.
+
+That is true because:
+
+- the best move depends on how the ball trajectory will unfold later
+- the consequence of an action may only become clear after several more steps
+- small geometric differences can produce very different future reward
+
+So even in a simple arcade game, "which action is better right now?" is really
+a long-horizon prediction problem.
+
+### From Q-Function To Policy
+
+Knowing Q-values is not the end goal. The agent ultimately needs a policy:
+
+- notation: `pi(s)`
+- meaning: a rule that maps a state to an action choice
+
+The lecture states the core strategy for a value-based policy:
+
+`pi*(s) = argmax_a Q(s, a)`
+
+So if I know the Q-function, I can choose the action with the highest expected
+future return.
+
+This gives a clean separation:
+
+- the Q-function scores actions
+- the policy uses those scores to decide what to do
+
+### Two Main Deep RL Directions
+
+The lecture then organizes deep reinforcement learning algorithms into two broad
+families.
+
+Value learning:
+
+- learn `Q(s, a)`
+- act by choosing `a = argmax_a Q(s, a)`
+
+Policy learning:
+
+- learn `pi(s)`
+- sample or choose actions directly from that policy
+
+This split is helpful because it previews the rest of the lecture:
+
+- value-based methods focus on estimating action values well
+- policy-based methods focus on directly optimizing the decision rule
+- later deep RL methods combine the two ideas in different ways
+
 ## Software Lab 3: LLM Fine-Tuning
 
 The current 2026 course site lists Software Lab 3 as "Fine-Tune an LLM, You
