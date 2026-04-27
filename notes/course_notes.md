@@ -1458,6 +1458,717 @@ That is the natural stopping point for this commit. The next part of the
 lecture moves into policy-gradient methods as a way around some of these
 limitations.
 
+### Policy Gradient Methods
+
+The lecture's next move is important because it shows that Q-learning is not the
+only way to build an RL agent. Instead of learning a value table or Q-network and
+then deriving a policy by `argmax`, policy-gradient methods directly learn the
+policy itself.
+
+Q-learning view:
+
+- network input: state
+- network output: Q-values for each possible action
+- action choice: take the action with the highest predicted Q-value
+
+Policy-gradient view:
+
+- network input: state
+- network output: a policy distribution over actions
+- action choice: sample from that distribution
+- training goal: increase the probability of actions that led to high return and
+  decrease the probability of actions that led to low return
+
+This is a different mental model. The network is no longer only a critic that
+scores actions. It becomes the actor that decides how the agent behaves.
+
+### Why Learn The Policy Directly
+
+The biggest reason is action-space flexibility.
+
+Q-learning fits naturally when:
+
+- the action space is discrete
+- the number of actions is small
+- it is cheap to compute `max_a Q(s, a)`
+
+But many real control problems do not look like that. A self-driving policy may
+need to output:
+
+- steering angle
+- acceleration
+- braking force
+- continuous control commands
+
+In those cases, enumerating every possible action is not realistic. A policy
+network can instead output parameters of a distribution. For a continuous action,
+the network might output:
+
+- mean action
+- variance / spread
+
+Then the agent samples from that distribution. This lets the policy represent
+continuous behavior without discretizing the world into an awkward list of
+possible actions.
+
+### Stochastic Policies
+
+Policy gradients also make stochastic policies natural. This matters because a
+good strategy is not always deterministic.
+
+Possible reasons to keep a stochastic policy:
+
+- exploration during training
+- environments where multiple actions are reasonable
+- avoiding brittle behavior caused by always taking one greedy action
+- representing uncertainty in action choice
+
+This connects back to the exploration problem. In Q-learning, exploration is
+often added externally with something like `epsilon`-greedy action selection. In
+policy learning, randomness is part of the learned policy distribution itself.
+
+### REINFORCE Intuition
+
+The lecture presents the core policy-gradient training loop in a REINFORCE-style
+way:
+
+1. Run the current policy in the environment for a while.
+2. Record the states, actions, and rewards.
+3. Compute returns from the rewards.
+4. Increase the probability of actions that led to high return.
+5. Decrease the probability of actions that led to low or negative return.
+
+The key term is the log probability of the sampled action:
+
+`log pi_theta(a_t | s_t)`
+
+That term tells the optimizer how likely the current policy was to take action
+`a_t` in state `s_t`. The reward/return term tells whether that action should be
+reinforced or discouraged.
+
+A compact version of the update idea:
+
+`grad_theta J(theta) ~= R_t * grad_theta log pi_theta(a_t | s_t)`
+
+What this means:
+
+- if return is high, push the policy to make that action more likely
+- if return is low or negative, push the policy to make that action less likely
+- the gradient changes the policy parameters directly
+
+This is gradient ascent on expected return, not supervised learning against a
+human-provided label.
+
+### Policy Gradient Loss
+
+In code, this often becomes a loss with a negative sign because optimizers
+usually minimize:
+
+`loss = -log pi_theta(a_t | s_t) * R_t`
+
+Why the sign matters:
+
+- high return should make the optimizer increase the selected action's
+  probability
+- minimization of the negative log-probability term has that effect
+- bad returns reverse the pressure
+
+This is easy to confuse with normal classification. In classification, the label
+tells the model the correct class immediately. In policy gradient RL, the
+"correctness" of an action is inferred from the return after interacting with the
+environment.
+
+### Credit Assignment And Variance
+
+Policy gradients are powerful, but the basic REINFORCE estimator can be noisy.
+The agent may receive a reward many steps after the action that helped cause it.
+That creates a credit-assignment problem:
+
+- which earlier action deserves credit for the later reward?
+- which action should be blamed for a later crash?
+- how much of the return should be assigned to each sampled action?
+
+This is one reason policy-gradient methods often need many rollouts. The signal
+is not as direct as a supervised label, and the variance of the gradient estimate
+can be high.
+
+Practical improvements include:
+
+- subtracting a baseline from returns
+- using advantage estimates instead of raw returns
+- combining policy learning with value learning
+- adding entropy regularization to preserve exploration
+
+The lecture does not need all of those details to make the main point: direct
+policy optimization is flexible, but it can be statistically harder than it looks.
+
+### Actor-Critic Bridge
+
+Actor-critic methods combine the two sides:
+
+- actor: learns the policy `pi(a | s)`
+- critic: learns a value estimate for states or state-action pairs
+
+The critic gives the actor a better training signal than raw episode returns
+alone. Instead of only asking "was the whole trajectory good?", the agent can ask
+"was this action better than expected in this state?"
+
+That idea is usually written with an advantage function:
+
+`A(s, a) = Q(s, a) - V(s)`
+
+Interpretation:
+
+- positive advantage: the action was better than the baseline expectation
+- negative advantage: the action was worse than expected
+- near-zero advantage: the action was about average for that state
+
+This is a clean conceptual bridge:
+
+- value methods estimate how good states/actions are
+- policy methods learn how to act
+- actor-critic methods use learned value estimates to improve policy updates
+
+### Simulation And Reality
+
+The autonomous-driving example in the lecture makes the practical issue clear.
+For a car, the environment is the road, the states are sensor observations, and
+the action might be a steering command. A policy-gradient agent could in
+principle learn to steer by trial and error.
+
+But real-world trial and error is dangerous:
+
+- crashing during training is not acceptable
+- rare events matter a lot
+- real sensor inputs are messy
+- the agent may face situations not represented in its simulator
+
+This is why simulation matters. If the simulator is realistic enough, the agent
+can collect experience safely. But sim-to-real transfer is its own hard problem:
+a policy that looks strong in a simulator can fail when lighting, road geometry,
+other drivers, or sensor noise differ from the training environment.
+
+### AlphaGo / AlphaZero Takeaway
+
+The Go examples are useful because they show why RL is attractive for problems
+where the search space is enormous. The number of possible board configurations
+in Go is far too large for brute-force enumeration.
+
+The important idea is not just that AlphaGo won games. It is that deep learning
+can be combined with search, self-play, and value/policy estimation:
+
+- policy networks guide which moves are promising
+- value networks estimate how good a board position is
+- self-play creates training experience without needing every move labeled by a
+  human expert
+
+AlphaZero pushes this further by showing that a system can learn strong play
+from self-play across multiple games. That connects to the broader course theme:
+deep learning becomes more powerful when it is paired with the right problem
+structure and training loop.
+
+### Lecture 5 Final Summary
+
+The finished Lecture 5 arc is:
+
+- RL is about agents acting in environments to maximize future reward.
+- The main data object is a trajectory, not an independent labeled example.
+- Rewards can be delayed, sparse, noisy, or badly designed.
+- Q-learning estimates expected future return for state-action pairs.
+- DQN uses neural networks to approximate Q-values in high-dimensional states.
+- DQN needs stabilization tricks like replay buffers and target networks.
+- Q-learning works best with small discrete action spaces.
+- Policy-gradient methods directly optimize a policy and handle stochastic or
+  continuous actions more naturally.
+- Actor-critic methods combine policy learning with value estimation.
+- Real-world RL depends heavily on safe data collection, simulation fidelity,
+  reward design, and transfer from training environments to deployment.
+
+My main takeaway: RL is not just another loss function. It changes the whole
+learning setup because the model's behavior changes the data it receives.
+
+## Lecture 6: Language Models and New Frontiers
+
+Lecture 6 is the course's capstone-style lecture. It does two things at once:
+
+- steps back and asks where deep learning is still brittle
+- points forward to newer frontiers like diffusion models, protein generation,
+  and large language models
+
+This lecture matters because it prevents the course from ending with the idea
+that deep learning is solved. The earlier lectures show how to build neural
+networks. Lecture 6 is more about when I should trust them, when I should be
+skeptical, and what newer model families are trying to fix or extend.
+
+### Neural Networks As Function Approximators
+
+A useful high-level summary of the course is:
+
+- discriminative models learn mappings from data to decisions
+- generative models learn data distributions or inverse mappings
+- RL agents learn policies for acting over time
+
+In all of these cases, neural networks can be viewed as function approximators.
+They learn a mapping from input space to output space, or they learn a
+probability distribution that explains the data.
+
+The universal approximation theorem is a useful theoretical backdrop:
+
+- a feed-forward neural network with enough hidden units can approximate a broad
+  class of continuous functions
+
+But the caveats are the part that matters in practice:
+
+- the number of hidden units required may be infeasibly large
+- the theorem does not say gradient descent will find the right weights
+- it does not guarantee good generalization
+- it does not say what happens outside the training distribution
+
+So I should not read "universal approximator" as "universal problem solver." It
+is a statement about representational possibility, not a guarantee of learning,
+robustness, or safety.
+
+### Rethinking Generalization
+
+The Zhang et al. random-label experiment is one of the strongest warnings in the
+lecture.
+
+Setup:
+
+- start with an image classification dataset
+- progressively randomize the labels
+- train a modern deep network on the corrupted training data
+- compare training accuracy and test accuracy
+
+Result:
+
+- the model can fit the training set almost perfectly, even when labels are
+  random
+- test accuracy collapses as labels become less meaningful
+
+The key lesson:
+
+- high training accuracy does not prove the model learned useful structure
+- overparameterized networks can memorize noise
+- generalization has to be measured on held-out data and, ideally,
+  out-of-distribution cases
+
+This is different from how I might naively think about capacity. More capacity
+lets a model learn complex patterns, but it also lets the model memorize
+spurious or random relationships.
+
+### Data Bounds And Out-Of-Distribution Inputs
+
+The function-approximator picture is useful because it shows where deep learning
+is strongest:
+
+- interpolate within regions where the model has seen training examples
+- learn patterns supported by many examples
+- make predictions on inputs similar to the training distribution
+
+The hard question is what happens outside that region.
+
+If a new input is far from the training data, the network can still output a
+confident prediction. The output may look normal because the softmax still
+produces a probability distribution, but the model may not actually "know" the
+answer in any meaningful sense.
+
+This is the question the lecture keeps returning to:
+
+`How do we know when the network does not know?`
+
+That question applies to:
+
+- autonomous driving
+- medical imaging
+- facial detection
+- scientific discovery
+- LLM answers that sound plausible but are not grounded
+
+### Failure Mode: Dataset Bias And Missing Cases
+
+The colorization example is a small version of a much larger problem. If a model
+learns from a biased set of images, it can hallucinate patterns that were common
+in the training data even when they do not fit the specific input.
+
+The autonomous-driving crash example is the safety-critical version of the same
+issue:
+
+- the model was trained from past visual data
+- the deployment environment changed
+- a construction barrier appeared in a place not represented in the training data
+- the system behaved badly at exactly the kind of out-of-distribution point where
+  uncertainty should have mattered
+
+My takeaway is that failure can come from missingness, not only from noisy labels.
+If the dataset never covers an important situation, the model cannot reliably
+learn how to handle that situation.
+
+### Failure Mode: Adversarial Examples
+
+The adversarial example section connects directly back to gradient descent.
+
+Normal training asks:
+
+`How should I change the weights to reduce loss?`
+
+Adversarial attack construction asks a similar but reversed question:
+
+`How should I change the input to increase loss?`
+
+The weights and true label are fixed. The attacker computes a small perturbation
+to the input that pushes the model toward a wrong prediction.
+
+Important idea:
+
+- the perturbation can be tiny or visually meaningless to a human
+- the perturbation is meaningful to the model because it follows the gradient of
+  the model's loss
+- the same optimization machinery that makes models trainable can expose
+  directions where the model is brittle
+
+The lecture also points to physically realized adversarial examples. That matters
+because adversarial attacks are not only a digital-image curiosity. If a physical
+object can be designed to fool a classifier from many angles, robustness becomes
+a real-world safety issue.
+
+### Failure Mode: Algorithmic Bias
+
+Algorithmic bias is not presented as a separate social topic disconnected from
+the math. It follows from the same core issues:
+
+- data imbalance
+- missing examples
+- measurement noise
+- biased labels
+- overconfident predictions
+- deployment settings that differ from training settings
+
+This ties back to Lab 2. A facial detection system can have strong average
+accuracy while still performing worse for underrepresented groups. If the
+training distribution is skewed, the learned representation and decision boundary
+can inherit that skew.
+
+The practical lesson:
+
+- average accuracy is not enough
+- evaluation needs subgroup metrics
+- uncertainty and bias should be checked before deployment, not after harm occurs
+
+### Limits Of Earlier Generative Models
+
+Lecture 6 then returns to generative modeling from Lecture 4.
+
+VAEs and GANs are powerful, but the lecture highlights real limitations:
+
+- GAN training can be unstable
+- GANs can suffer from mode collapse
+- generated samples may reflect the average or dominant training modes
+- extrapolating beyond the training distribution is hard
+- one-shot generation puts a lot of pressure on one forward pass
+
+Mode collapse is especially important. If a generator finds a narrow set of
+outputs that fool the discriminator, it may fail to represent the full diversity
+of the data distribution. The samples can look sharp but not cover the range of
+valid possibilities.
+
+### Diffusion Models: Core Idea
+
+Diffusion models attack generation differently. Instead of producing a complete
+sample in one shot, they learn an iterative denoising process.
+
+The two processes:
+
+- forward process: gradually add noise to real data
+- reverse process: learn to remove noise step by step
+
+Forward noising:
+
+- start with a real image or data example
+- sample random noise
+- add controlled amounts of noise over many time steps
+- eventually reach something close to pure noise
+
+Reverse denoising:
+
+- start from random noise
+- use the learned model to predict how to remove a small amount of noise
+- repeat many times
+- end with a clean generated sample
+
+This reframes generation as many easier denoising decisions instead of one hard
+generation decision.
+
+### Why Predict Noise
+
+The lecture makes a useful point about the training objective. The model could
+try to predict the clean image directly from a noisy image, but that is hard. In
+practice, diffusion models often learn to predict the residual noise that was
+added.
+
+That is a better local task:
+
+- the forward process gives paired examples of noisy states and known noise
+- predicting the noise residual is more stable than reconstructing everything at
+  once
+- repeated small corrections can build high-quality outputs
+
+This is one reason diffusion models produce strong samples. They turn generation
+into a sequence of tractable refinement steps.
+
+### Diffusion Compared With VAEs And GANs
+
+My comparison table:
+
+| Model family | Generation style | Main strength | Main concern |
+| --- | --- | --- | --- |
+| VAE | encode/decode through latent variables | structured latent representation | blurry samples or reconstruction/regularization tradeoff |
+| GAN | generator/discriminator game | sharp samples | unstable training and mode collapse |
+| Diffusion | iterative denoising from noise | high-fidelity diverse samples | many denoising steps can be computationally expensive |
+
+Diffusion models are not magic, but the iterative design gives them a different
+failure profile. Instead of asking one network pass to invent the whole image,
+the model learns a controlled reverse process.
+
+### Diffusion For Biology
+
+The biology example was one of the clearest "new frontier" parts of the lecture.
+Proteins can be thought of in two linked ways:
+
+- sequence: amino acid language
+- structure: 3D geometry that determines function
+
+The generative goal is not just to make a pretty image. It is to design molecules
+that could have useful biological or therapeutic function.
+
+Diffusion can be applied to protein structure by treating the random state as an
+unstructured or noisy configuration and learning to denoise toward plausible
+protein backbones. The model gradually refines geometry until it produces a
+structured 3D candidate.
+
+The broader idea:
+
+- generative AI can design candidates in scientific spaces
+- the output still needs wet-lab or experimental validation
+- the model is part of a discovery loop, not a replacement for biology
+
+This is a useful corrective to hype. The model can propose, but physical reality
+still tests.
+
+### Protein Sequences As Language
+
+The lecture also describes protein sequences as a kind of biological language.
+That connects back to sequence modeling:
+
+- amino acids are discrete symbols
+- protein sequences can be modeled like strings
+- large datasets across evolution provide many examples
+- generated sequences can be candidates for new function
+
+This is one of the strongest conceptual bridges in the course. The same general
+ideas from language modeling can transfer into biology if I define the right
+tokens, training data, and validation criteria.
+
+### Large Language Models
+
+The final part of Lecture 6 moves to large language models.
+
+At the highest level:
+
+- an LLM is a very large neural network trained on very large text datasets
+- the dominant architecture is the Transformer
+- the basic pretraining task is next-token prediction
+- scale changes the capabilities that emerge
+
+GPT is useful to unpack:
+
+- Generative: produces text-based outputs
+- Pre-trained: first trained on a large general corpus
+- Transformer: uses the Transformer architecture
+
+This is not a totally new objective compared with Lecture 2. It is the same
+next-token idea scaled up massively with better architectures, more data, and
+more compute.
+
+### Tokenization And Next-Token Prediction
+
+The basic pipeline:
+
+1. Collect large amounts of raw text.
+2. Split text into tokens.
+3. Convert tokens into numerical embeddings.
+4. Feed token sequences into a Transformer.
+5. Predict the probability distribution over the next token.
+6. Compare the predicted distribution with the true next token using cross
+   entropy.
+7. Update model weights.
+
+Important detail:
+
+- tokens are not always words
+- tokenization can use subwords or other chunks
+- the model predicts a distribution over its vocabulary
+- softmax turns logits into probabilities for the next token
+
+In training, the targets are shifted by one token. The input sequence is the
+context, and the label at each position is the next token.
+
+This connects directly to Lab 3. The local Lab 3 scripts are much smaller, but
+they check the same core mechanics:
+
+- template text
+- token IDs
+- shifted labels
+- answer masking
+- causal next-token loss
+
+### Prompting And Inference
+
+At inference time, the trained LLM uses the same next-token machinery:
+
+1. User provides a prompt.
+2. Prompt is tokenized.
+3. Model predicts the next-token distribution.
+4. A token is selected by sampling or decoding.
+5. The selected token is appended to the context.
+6. The loop repeats.
+
+The important idea is that long answers are generated one token at a time. The
+model is not retrieving a whole paragraph as a fixed object. It is repeatedly
+conditioning on the current context and extending it.
+
+This is why generation settings matter:
+
+- greedy decoding can be deterministic and repetitive
+- sampling can increase diversity
+- temperature changes how sharp or flat the token distribution is
+- context length limits what the model can condition on
+
+### Capabilities Of LLMs
+
+The lecture points to several capabilities that become useful once language is the
+interface:
+
+- knowledge retrieval
+- summarization
+- writing and editing
+- code generation
+- planning support
+- natural-language interaction with tools and systems
+
+The key phrase for me is "natural language as an interface." LLMs are not only
+models that produce text. They make it possible to control or query complex
+systems through language.
+
+### LLM Limitations
+
+The limitations are just as important:
+
+- hallucinations: plausible text that is not grounded in truth
+- weak uncertainty estimates: confident wording even when the answer is wrong
+- reasoning gaps: failures on multi-step logic or planning
+- bias: outputs reflect patterns and biases in training data
+- stale or missing knowledge: pretraining data is not the same as current truth
+- prompt sensitivity: small wording changes can change behavior
+
+This links back to the earlier uncertainty section. A softmax distribution over
+tokens does not automatically tell me whether the answer is true. The model can
+be confident about the next token while being wrong about the world.
+
+### Scaling Laws And Emergence
+
+The lecture introduces scaling laws as an empirical way to describe how model
+performance changes with:
+
+- number of parameters
+- dataset size
+- compute
+
+The striking observation is emergence:
+
+- some capabilities are weak or absent in smaller models
+- as scale increases, performance can jump on certain tasks
+- larger models can show qualitatively new behavior
+
+I should be careful with the interpretation. Scaling laws are not a proof that
+"scale is all you need." They are evidence that scale has been a powerful driver
+of recent progress. But the earlier parts of the lecture still apply:
+
+- data quality matters
+- uncertainty matters
+- bias matters
+- deployment and evaluation matter
+
+### Foundation Models
+
+The final concept is the foundation model:
+
+- train a large general model on broad unannotated data
+- adapt it to many downstream tasks
+- use the model as a general-purpose base rather than training a separate model
+  from scratch for every task
+
+This is a major shift from the earlier course examples:
+
+- Lecture 1: train a model for a specific supervised task
+- Lecture 2: train a sequence model for a specific sequence task
+- Lecture 3: train a CNN for a specific vision task
+- Lecture 4: train a generative model for a specific data distribution
+- Lecture 6: train a broad model that can be adapted across tasks
+
+Foundation models are powerful because they reuse representations learned from
+massive data. They are risky because their failures can also transfer broadly
+across many downstream uses.
+
+### My Finished Lecture 6 Takeaway
+
+Lecture 6 is basically a realism check.
+
+Deep learning works because neural networks are extremely flexible function
+approximators, and scaling that flexibility with data and compute has created
+diffusion models, protein generators, and LLMs. But the same flexibility creates
+failure modes:
+
+- memorization instead of real generalization
+- brittleness outside the training distribution
+- adversarial vulnerability
+- biased behavior from biased data
+- overconfident outputs when the model should be uncertain
+
+The frontier is not just "bigger models." It is:
+
+- better generative processes
+- better uncertainty estimation
+- better evaluation
+- better grounding
+- safer deployment
+- better ways to combine models with human goals and real-world validation
+
+This is a good place to mark the core lecture sequence through Lecture 6 as
+complete in my notes. The next work should be either the official/current Lecture
+6 material if the 2026 release differs from the archived deck, or deeper project
+work that turns one of these frontier ideas into an experiment.
+
+### Three Manual Commit Points For This Progress
+
+I did not commit automatically. If I split this work manually, the realistic
+commit points are:
+
+1. `Finish Lecture 5 policy-gradient notes`
+   - completes the Lecture 5 arc after DQN limitations
+   - adds policy gradients, stochastic policies, REINFORCE intuition,
+     actor-critic, sim-to-real caveats, and AlphaGo/AlphaZero takeaways
+
+2. `Add Lecture 6 limitations and robustness notes`
+   - adds neural networks as function approximators, universal approximation
+     caveats, random-label generalization, out-of-distribution uncertainty,
+     adversarial examples, and algorithmic bias
+
+3. `Finish Lecture 6 new-frontiers notes and tracker`
+   - adds diffusion models, protein generation, LLMs, next-token prediction,
+     foundation models, and final Lecture 6 takeaways
+   - updates the top-level tracker to show lecture progress through Lecture 6
+
 ## Software Lab 3: LLM Fine-Tuning
 
 The current 2026 course site lists Software Lab 3 as "Fine-Tune an LLM, You
