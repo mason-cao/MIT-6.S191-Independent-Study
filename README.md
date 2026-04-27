@@ -25,6 +25,25 @@ This is my tracker for the official MIT 6.S191 software labs.
 
 I plan to keep updating this as I finish each official lab, re-implement sections in PyTorch where useful, and write up the parts that are mathematically interesting or practically non-obvious.
 
+## Lecture Progress
+
+| Lecture | Status |
+| --- | --- |
+| [x] Lecture 1: Intro to Deep Learning | Complete notes |
+| [x] Lecture 2: Deep Sequence Modeling | Complete notes |
+| [x] Lecture 3: Deep Computer Vision | Complete notes plus Lab 2 bridge |
+| [x] Lecture 4: Deep Generative Modeling | Complete notes plus DB-VAE bridge |
+| [x] Lecture 5: Deep Reinforcement Learning | Complete notes through DQN, policy gradients, actor-critic, simulation, and AlphaGo/AlphaZero |
+| [x] Lecture 6: Language Models and New Frontiers | Complete archived-deck notes on limitations, generalization, adversarial examples, diffusion models, protein generation, LLMs, scaling, and foundation models |
+
+## Current Manual Commit Points
+
+I am not auto-committing study progress. The next realistic split is:
+
+1. `Finish Lecture 5 policy-gradient notes`
+2. `Add Lecture 6 limitations and robustness notes`
+3. `Finish Lecture 6 new-frontiers notes and tracker`
+
 ## Hardware / Setup
 
 All of this is running on a local Ubuntu server. Part of the point of this repo is not just learning deep learning models, but also getting comfortable with the systems side: environment setup, dependency management, remote workflows, and the kind of lightweight edge-compute/admin work that makes experiments reproducible.
