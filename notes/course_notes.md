@@ -1954,11 +1954,67 @@ That question applies to:
 - scientific discovery
 - LLM answers that sound plausible but are not grounded
 
+### Source Pass: Distribution Shift And Uncertainty
+
+The 2026 Lecture 6 deck frames this as a basic limit of deep learning systems:
+they are strong at learning from examples, but they do not automatically know
+where their examples stop being relevant.
+
+My working definition:
+
+- in-distribution input: an input that looks like the data the model learned
+  from, including the important hidden factors behind the examples
+- out-of-distribution input: an input that may have the same superficial format
+  but comes from a different part of the world than the training set covered
+- uncertainty: the model's signal that its prediction should not be trusted as a
+  normal confident decision
+
+The trap is that the network will usually still produce an answer. A classifier
+does not stop at the edge of the training distribution and say "this is outside
+my experience." It keeps applying the learned function. That means a decision
+boundary can extend into regions where there were no examples to constrain it.
+
+This changes how I should read probability outputs:
+
+- a high softmax score is not the same thing as grounded knowledge
+- low loss on a test set does not guarantee the model will behave sensibly under
+  distribution shift
+- a model can be calibrated on common cases and still fail on rare cases
+- uncertainty should be tested, not assumed from the architecture
+
+The practical version of the lecture's question is:
+
+`When should this system abstain, ask for help, or fall back to a safer policy?`
+
+For my own experiments, this means I should not only report the normal train /
+validation / test split. I should also ask:
+
+- What examples were common in training?
+- What examples were rare or missing?
+- What transformations or environments would make the input meaningfully
+  different?
+- Does the model's confidence drop on these cases?
+- If confidence does not drop, is that because the model is robust or because it
+  is overconfident?
+
 ### Failure Mode: Dataset Bias And Missing Cases
 
 The colorization example is a small version of a much larger problem. If a model
 learns from a biased set of images, it can hallucinate patterns that were common
 in the training data even when they do not fit the specific input.
+
+This is not just a "bad dataset" problem in the vague sense. The model is doing
+what training asks it to do: find patterns that reduce loss on the examples it
+sees. If the training data overrepresents some settings and underrepresents
+others, the model can learn those frequencies as if they were facts about the
+world.
+
+The colorization example is useful because the error is easy to see:
+
+- the input image is ambiguous
+- the model fills in color using learned correlations
+- if the training distribution is biased, the default guess reflects that bias
+- the output can look plausible while still being wrong for the specific case
 
 The autonomous-driving crash example is the safety-critical version of the same
 issue:
@@ -1972,6 +2028,32 @@ issue:
 My takeaway is that failure can come from missingness, not only from noisy labels.
 If the dataset never covers an important situation, the model cannot reliably
 learn how to handle that situation.
+
+The more dangerous part is that rare cases can matter more than common cases.
+For a normal benchmark, a rare construction-zone configuration might barely move
+the average accuracy number. For an autonomous system, that same rare case can be
+the exact case where the cost of being wrong is highest.
+
+That gives me a better way to think about data coverage:
+
+- common cases help the model learn the main pattern
+- rare cases test whether the model can handle the edges of deployment
+- missing cases create blind spots that normal accuracy can hide
+- safety-critical systems need stress tests, not just representative averages
+
+So the evaluation question should not be only:
+
+`How accurate is the model on the test set?`
+
+It should also be:
+
+`What important situations are absent from the test set?`
+
+This connects back to Lab 2. A face detector can look strong on average while
+still having gaps for underrepresented groups or unusual lighting / pose /
+occlusion settings. The technical problem and the fairness problem are linked by
+the same mechanism: the training distribution shapes what the model treats as
+normal.
 
 ### Failure Mode: Adversarial Examples
 
@@ -1996,10 +2078,46 @@ Important idea:
 - the same optimization machinery that makes models trainable can expose
   directions where the model is brittle
 
+This makes adversarial examples feel less mysterious. The model has learned a
+high-dimensional decision surface. In high dimensions, there can be many small
+directions that do not matter to human perception but do matter to the model's
+internal features. A perturbation can be small in pixel space and still move the
+input across the learned boundary.
+
+The important distinction:
+
+- random noise may not fool the model
+- optimized noise is chosen specifically to exploit the model's gradients
+- the attack is model-aware, not just visually strange
+
+This also explains why adversarial examples are a robustness test rather than a
+normal data augmentation trick. If the defense is known, an attacker can often
+optimize around the defense. That means robustness claims should be measured
+against adaptive attacks, not only against the first attack tried.
+
 The lecture also points to physically realized adversarial examples. That matters
 because adversarial attacks are not only a digital-image curiosity. If a physical
 object can be designed to fool a classifier from many angles, robustness becomes
 a real-world safety issue.
+
+The physical setting adds extra constraints:
+
+- the perturbation has to survive camera noise
+- it has to survive changes in distance and angle
+- it has to survive lighting and background variation
+- it has to affect the model consistently enough to matter
+
+If an attack still works under those transformations, it is not just a weakness
+of a static image classifier. It is evidence that the model's learned features
+can disagree with the human-relevant structure of the task.
+
+My notes for future model evaluation:
+
+- report clean accuracy and robust accuracy separately
+- test sensitivity to small input changes
+- inspect high-confidence wrong predictions
+- be careful with defenses that only hide gradients
+- treat adversarial robustness as a separate property from benchmark accuracy
 
 ### Failure Mode: Algorithmic Bias
 
@@ -2023,6 +2141,61 @@ The practical lesson:
 - average accuracy is not enough
 - evaluation needs subgroup metrics
 - uncertainty and bias should be checked before deployment, not after harm occurs
+
+I want to keep the different sources of bias separate:
+
+- sampling bias: the dataset does not represent the full deployment population
+- label bias: the targets themselves reflect human or institutional bias
+- measurement bias: the observed variable is only a noisy proxy for the thing we
+  care about
+- representation bias: the learned features encode some groups or situations
+  less well than others
+- deployment bias: the model is used in a setting different from the setting it
+  was trained or validated for
+- feedback-loop bias: model decisions affect the future data that is collected
+
+This matters because different bias sources require different interventions.
+Collecting more data helps if the problem is missing coverage, but it does not
+automatically fix biased labels. Reweighting examples can help with imbalance,
+but it does not prove the deployment setting is safe. A better architecture can
+help representation learning, but it cannot replace measurement and subgroup
+evaluation.
+
+For Lab 2, DB-VAE is a concrete response to representation and sampling bias.
+The idea is to use the learned latent representation to identify regions of the
+face distribution that are underrepresented, then sample more heavily from those
+regions during training. That turns the model's own representation into a tool
+for balancing training pressure.
+
+The evaluation checklist should include:
+
+- overall accuracy
+- subgroup accuracy
+- false positive and false negative rates by subgroup
+- confidence calibration by subgroup
+- uncertainty / abstention rates by subgroup
+- representative failure examples, not just summary numbers
+
+The strongest lesson here is that "fairness" is not one metric or one loss term.
+It is a deployment property that depends on data, labels, model behavior,
+thresholds, uncertainty, and the real consequences of mistakes.
+
+### Robustness Checklist For My Own Work
+
+Before I write that a model "works," I should be able to answer:
+
+- What distribution did the training data come from?
+- What distribution will the model actually face?
+- What cases are rare, missing, or expensive to get wrong?
+- Does the model know when it is uncertain?
+- Are the worst errors concentrated in a subgroup or edge case?
+- Does performance survive reasonable perturbations?
+- Is accuracy being reported separately from robustness and fairness?
+- What would happen if this model were confidently wrong?
+
+This is probably the biggest mindset shift in Lecture 6. Earlier lectures taught
+me how to build models that optimize a loss. This lecture is forcing me to ask
+what happens when the optimized system leaves the clean benchmark setting.
 
 ### Limits Of Earlier Generative Models
 
@@ -2318,25 +2491,18 @@ complete in my notes. The next work should be either the official/current Lectur
 6 material if the 2026 release differs from the archived deck, or deeper project
 work that turns one of these frontier ideas into an experiment.
 
-### Three Manual Commit Points For This Progress
+### Remaining Manual Commit Points For This Source Pass
 
-I did not commit automatically. If I split this work manually, the realistic
-commit points are:
+I did not commit automatically. After the source-framing commit, the remaining
+realistic split is:
 
-1. `Add Lecture 6 source-framing and project notes`
-   - adds a 2026 slide-deck source pass for the Lecture 6 framing
-   - captures the final project / paper review options as the next synthesis
-     milestone
-   - expands the early limitations notes around hype, universal approximation,
-     and random-label generalization
-
-2. `Deepen Lecture 6 robustness notes from 2026 slides`
+1. `Deepen Lecture 6 robustness notes from 2026 slides`
    - add more slide-grounded notes on out-of-distribution uncertainty,
      adversarial examples, dataset bias, and algorithmic bias
    - tighten the distinction between accuracy, robustness, fairness, and
      deployment readiness
 
-3. `Deepen Lecture 6 frontier-model notes and tracker`
+2. `Deepen Lecture 6 frontier-model notes and tracker`
    - add more slide-grounded notes on diffusion models, protein generation,
      LLMs, scaling, and foundation models
    - refresh the top-level tracker and next-study direction after the source

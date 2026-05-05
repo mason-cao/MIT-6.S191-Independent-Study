@@ -40,9 +40,8 @@ I plan to keep updating this as I finish each official lab, re-implement section
 
 I am not auto-committing study progress. The next realistic split is:
 
-1. `Add Lecture 6 source-framing and project notes`
-2. `Deepen Lecture 6 robustness notes from 2026 slides`
-3. `Deepen Lecture 6 frontier-model notes and tracker`
+1. `Deepen Lecture 6 robustness notes from 2026 slides`
+2. `Deepen Lecture 6 frontier-model notes and tracker`
 
 ## Hardware / Setup
 
