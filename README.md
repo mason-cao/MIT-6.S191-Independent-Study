@@ -34,15 +34,15 @@ I plan to keep updating this as I finish each official lab, re-implement section
 | [x] Lecture 3: Deep Computer Vision | Complete notes plus Lab 2 bridge |
 | [x] Lecture 4: Deep Generative Modeling | Complete notes plus DB-VAE bridge |
 | [x] Lecture 5: Deep Reinforcement Learning | Complete notes through DQN, policy gradients, actor-critic, simulation, and AlphaGo/AlphaZero |
-| [x] Lecture 6: Language Models and New Frontiers | Complete archived-deck notes on limitations, generalization, adversarial examples, diffusion models, protein generation, LLMs, scaling, and foundation models |
+| [x] Lecture 6: Language Models and New Frontiers | Complete core notes on limitations, generalization, adversarial examples, diffusion models, protein generation, LLMs, scaling, and foundation models; source-pass expansion in progress |
 
 ## Current Manual Commit Points
 
 I am not auto-committing study progress. The next realistic split is:
 
-1. `Finish Lecture 5 policy-gradient notes`
-2. `Add Lecture 6 limitations and robustness notes`
-3. `Finish Lecture 6 new-frontiers notes and tracker`
+1. `Add Lecture 6 source-framing and project notes`
+2. `Deepen Lecture 6 robustness notes from 2026 slides`
+3. `Deepen Lecture 6 frontier-model notes and tracker`
 
 ## Hardware / Setup
 

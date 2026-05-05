@@ -1700,6 +1700,175 @@ that deep learning is solved. The earlier lectures show how to build neural
 networks. Lecture 6 is more about when I should trust them, when I should be
 skeptical, and what newer model families are trying to fix or extend.
 
+### 2026 Source Pass: How Lecture 6 Is Framed
+
+I went back through the 2026 Lecture 6 slide deck instead of only relying on my
+memory of the lecture arc. The deck is titled "Deep Learning Limitations and
+New Frontiers," and that wording is doing a lot of work. It is not just a
+showcase of recent models. It is a checkpoint after the first five lectures:
+
+- Lecture 1: neural networks as trainable function approximators
+- Lecture 2: sequence modeling and next-step prediction
+- Lecture 3: vision, convolution, detection, and spatial structure
+- Lecture 4: generative modeling through VAEs, GANs, and latent variables
+- Lecture 5: reinforcement learning, value functions, policies, and agents
+- Lecture 6: what breaks, what scales, and where the field is moving next
+
+The "so far" slide shows a useful compressed picture of the whole course:
+
+- data comes in as signals, images, sensors, or other raw observations
+- the model turns those inputs into internal representations
+- the output is a decision, prediction, detection, action, or generated artifact
+
+That picture makes deep learning look clean: data goes in, decision comes out.
+The rest of Lecture 6 complicates that story. The important question becomes:
+what happens when the input is biased, shifted, adversarial, ambiguous, or
+outside the training distribution?
+
+This is the right capstone framing for the course. The earlier lectures taught
+me how to construct the pipeline. Lecture 6 asks whether the pipeline is
+trustworthy once the examples stop being clean notebook examples.
+
+### Administrative Context: Final Project Or Paper Review
+
+The Lecture 6 deck also makes the final class project concrete. For the January
+2026 in-person version, the two options were:
+
+- proposal presentation
+- one-page review of a deep learning / AI paper
+
+The proposal route is framed as a short, strict presentation of a novel deep
+learning research idea or application. The paper-review route is graded on
+clarity of writing and technical communication of the main ideas.
+
+For my independent-study repo, that is a useful hint about what "finishing" the
+course should mean. It should not only mean checking off lecture notes and lab
+scripts. A stronger finish would be one of these:
+
+- write a concise paper review that proves I can explain a technical idea in my
+  own words
+- draft a small project proposal that turns one course idea into an experiment
+- connect a lab mechanic, like LoRA or DB-VAE resampling, to a real research
+  question
+
+I should treat this as the next phase after the core lectures/labs. The repo is
+now strong on mechanics notes; the next level is synthesis.
+
+### Why The Lecture Starts With Hype
+
+The deck includes a "Rise of Deep Learning" collage with examples across voice
+cloning, StarCraft, cancer detection, fake-image generation, stock prediction,
+protein folding, autonomous driving, manufacturing, and other applied systems.
+That slide is not rigorous evidence by itself, but it explains why the lecture
+needs a limitations section.
+
+Deep learning is being used in domains with very different stakes:
+
+- entertainment or media generation, where failure can be annoying or misleading
+- recommendation and market prediction, where failure can have economic cost
+- medicine and driving, where failure can hurt people
+- scientific discovery, where generated candidates still need physical
+  validation
+
+So the question is not "can neural networks do impressive things?" They clearly
+can. The harder question is whether a model's success on the training/test setup
+means it will behave safely under distribution shift, rare cases, or adversarial
+pressure.
+
+This connects back to Lecture 5 too. In reinforcement learning, a reward
+function can optimize exactly what I asked for and still produce behavior I did
+not want. In supervised or generative modeling, the same issue appears through
+dataset choice, objective design, and evaluation setup.
+
+### Universal Approximation Is Not A Free Pass
+
+The "Power of Neural Nets" slide quotes the universal approximation theorem:
+a feed-forward network with a single hidden layer can approximate any continuous
+function to arbitrary precision. This is the mathematical reason neural
+networks are such flexible function approximators.
+
+But the slide immediately lists the caveats:
+
+- the number of hidden units may be infeasibly large
+- the resulting model may not generalize
+
+That second caveat is the one I need to keep returning to. Approximation and
+generalization are different claims.
+
+Approximation asks:
+
+- does there exist a set of weights that can represent the desired function?
+
+Generalization asks:
+
+- will training find a useful function from finite data?
+- will that function work on held-out examples?
+- will it still work when the input distribution changes?
+
+The theorem does not solve optimization, data coverage, robustness, or
+interpretability. It says the function class is powerful. It does not say that
+my trained model learned the right thing.
+
+### AI Hype And The Need For Skepticism
+
+The historical AI-hype slide shows a repeated pattern:
+
+- early excitement
+- inflated expectations
+- AI winter when expectations are not met
+- renewed hopes
+- another winter
+- current explosive growth
+
+My takeaway is not that current deep learning progress is fake. The results are
+real. The point is that technical capability and public expectation can move at
+different speeds.
+
+That matters for how I should write and think:
+
+- do not describe a model as "understanding" unless I can say what evidence
+  supports that claim
+- do not treat a benchmark score as deployment readiness
+- do not confuse a compelling demo with a reliable system
+- do not ignore failure cases because the average result looks strong
+
+The lecture is pushing a mature posture: be excited about what deep learning can
+do, but do not let the excitement erase the engineering and scientific burden of
+testing where it fails.
+
+### Rethinking Generalization: The Random-Label Warning
+
+The deck cites Zhang et al.'s "Understanding Deep Neural Networks Requires
+Rethinking Generalization" result. The slide uses familiar image examples, then
+adds random-looking labels underneath. The point is that a deep model can fit
+labels even when the labels no longer reflect the true semantic structure of the
+images.
+
+This is a big conceptual warning:
+
+- fitting the training set is not the same as learning the real pattern
+- high-capacity networks can memorize arbitrary mappings
+- the model can look successful under the training objective while learning
+  something useless
+
+A clean way to say it:
+
+- training accuracy measures whether the model matched the provided labels
+- test accuracy measures whether that mapping transfers to held-out data
+- out-of-distribution evaluation measures whether the model learned something
+  robust enough to survive a changed setting
+
+This is why my notes should always separate:
+
+- optimization: did the loss go down?
+- in-distribution generalization: did held-out test performance improve?
+- robustness: does performance survive perturbations, subgroup shifts, rare
+  cases, or adversarial inputs?
+
+The random-label experiment is the reason I should be cautious when a model has
+enough parameters to fit almost anything. Capacity is useful, but it makes weak
+evaluation easier to fool.
+
 ### Neural Networks As Function Approximators
 
 A useful high-level summary of the course is:
@@ -2154,20 +2323,24 @@ work that turns one of these frontier ideas into an experiment.
 I did not commit automatically. If I split this work manually, the realistic
 commit points are:
 
-1. `Finish Lecture 5 policy-gradient notes`
-   - completes the Lecture 5 arc after DQN limitations
-   - adds policy gradients, stochastic policies, REINFORCE intuition,
-     actor-critic, sim-to-real caveats, and AlphaGo/AlphaZero takeaways
+1. `Add Lecture 6 source-framing and project notes`
+   - adds a 2026 slide-deck source pass for the Lecture 6 framing
+   - captures the final project / paper review options as the next synthesis
+     milestone
+   - expands the early limitations notes around hype, universal approximation,
+     and random-label generalization
 
-2. `Add Lecture 6 limitations and robustness notes`
-   - adds neural networks as function approximators, universal approximation
-     caveats, random-label generalization, out-of-distribution uncertainty,
-     adversarial examples, and algorithmic bias
+2. `Deepen Lecture 6 robustness notes from 2026 slides`
+   - add more slide-grounded notes on out-of-distribution uncertainty,
+     adversarial examples, dataset bias, and algorithmic bias
+   - tighten the distinction between accuracy, robustness, fairness, and
+     deployment readiness
 
-3. `Finish Lecture 6 new-frontiers notes and tracker`
-   - adds diffusion models, protein generation, LLMs, next-token prediction,
-     foundation models, and final Lecture 6 takeaways
-   - updates the top-level tracker to show lecture progress through Lecture 6
+3. `Deepen Lecture 6 frontier-model notes and tracker`
+   - add more slide-grounded notes on diffusion models, protein generation,
+     LLMs, scaling, and foundation models
+   - refresh the top-level tracker and next-study direction after the source
+     pass is complete
 
 ## Software Lab 3: LLM Fine-Tuning
 
