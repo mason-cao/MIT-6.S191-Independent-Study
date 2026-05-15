@@ -1764,9 +1764,9 @@ the action is something continuous like:
 
 then enumerating actions and maximizing over them is no longer a clean fit.
 
-That is the natural stopping point for this commit. The next part of the
-lecture moves into policy-gradient methods as a way around some of these
-limitations.
+Those limits explain why the lecture moves into policy-gradient methods. If
+`argmax_a Q(s, a)` is awkward or impossible, it can be cleaner to learn the
+action rule directly.
 
 ### Policy Gradient Methods
 
@@ -1997,6 +1997,18 @@ The finished Lecture 5 arc is:
 My main takeaway: RL is not just another loss function. It changes the whole
 learning setup because the model's behavior changes the data it receives.
 
+My personal RL checklist after this lecture:
+
+- define the state, action, reward, and terminal condition before naming an
+  algorithm
+- check whether the action space is discrete or continuous
+- decide whether the problem needs value learning, direct policy learning, or an
+  actor-critic mix
+- separate immediate reward from long-term return
+- inspect reward design for incentives that could produce unwanted behavior
+- treat simulator realism and data collection safety as part of the method, not
+  afterthoughts
+
 ## Lecture 6: Language Models and New Frontiers
 
 Lecture 6 is the course's capstone-style lecture. It does two things at once:
@@ -2010,12 +2022,11 @@ that deep learning is solved. The earlier lectures show how to build neural
 networks. Lecture 6 is more about when I should trust them, when I should be
 skeptical, and what newer model families are trying to fix or extend.
 
-### 2026 Source Pass: How Lecture 6 Is Framed
+### How Lecture 6 Is Framed
 
-I went back through the 2026 Lecture 6 slide deck instead of only relying on my
-memory of the lecture arc. The deck is titled "Deep Learning Limitations and
-New Frontiers," and that wording is doing a lot of work. It is not just a
-showcase of recent models. It is a checkpoint after the first five lectures:
+The 2026 deck is titled "Deep Learning Limitations and New Frontiers," and that
+wording is doing a lot of work. This lecture is not just a showcase of recent
+models. It is a review point after the first five lectures:
 
 - Lecture 1: neural networks as trainable function approximators
 - Lecture 2: sequence modeling and next-step prediction
@@ -2264,7 +2275,7 @@ That question applies to:
 - scientific discovery
 - LLM answers that sound plausible but are not grounded
 
-### Source Pass: Distribution Shift And Uncertainty
+### Distribution Shift And Uncertainty
 
 The 2026 Lecture 6 deck frames this as a basic limit of deep learning systems:
 they are strong at learning from examples, but they do not automatically know
@@ -2796,22 +2807,17 @@ The frontier is not just "bigger models." It is:
 - safer deployment
 - better ways to combine models with human goals and real-world validation
 
-This is a good place to mark the core lecture sequence through Lecture 6 as
-complete in my notes. The next work should be either the official/current Lecture
-6 material if the 2026 release differs from the archived deck, or deeper project
-work that turns one of these frontier ideas into an experiment.
+The concrete habit I want from this lecture is to separate model properties that
+often get blurred together:
 
-### Next Notes Pass
+- accuracy: how often predictions match labels on the evaluated data
+- calibration: whether confidence scores match actual correctness rates
+- robustness: whether performance survives perturbations or distribution shift
+- fairness: whether errors and confidence failures are uneven across groups
+- deployment readiness: whether the system has monitoring, fallbacks, and clear
+  limits for real use
 
-The Lecture 6 notes are already broad, but they still need a tighter pass on the
-frontier-model material:
-
-- separate accuracy, robustness, fairness, and deployment readiness more cleanly
-- make the out-of-distribution and adversarial-example sections more concrete
-- connect diffusion models, protein generation, scaling laws, and foundation
-  models back to the earlier lectures
-- explain which parts of the Lab 3 fine-tuning workflow are local mechanics and
-  which parts require the official GPU/API notebook path
+Those are different questions. A model can improve on one and fail on another.
 
 ## Software Lab 3: LLM Fine-Tuning
 
@@ -2824,11 +2830,10 @@ is built around a real LLM stack:
 - judge model: Gemini 2.5 through OpenRouter
 - evaluation/monitoring: Comet Opik
 
-My repo version is deliberately smaller. I finished a local mechanics pass, not
-the official GPU/API competition path. That distinction matters because the
-official lab is about real LLM behavior at scale, while this repo is checking
-whether I understand the pieces well enough to run and debug the full notebook
-later.
+My repo version is deliberately smaller. It is a local mechanics pass, not the
+official GPU/API competition path. The official lab is about real LLM behavior
+at scale; this repo checks whether I understand the pieces well enough to run
+and debug the full notebook later.
 
 ### What The Lab Is Really About
 
@@ -2886,7 +2891,7 @@ middle ground between word-level and character-level tokenization:
 - subword tokenization keeps sequence lengths manageable while still handling
   unfamiliar words as combinations of known pieces
 
-My local script uses a tiny character-level tokenizer but keeps the chat markers
+The local script uses a tiny character-level tokenizer but keeps the chat markers
 as atomic special tokens. That is not meant to imitate LFM2's tokenizer exactly.
 It is a way to check the mechanics:
 
@@ -2977,7 +2982,7 @@ The official lab applies LoRA through PEFT to attention and feed-forward
 projection modules such as query, key, value, output, gate, up, and down
 projections.
 
-My local script mirrors the idea:
+The local script mirrors the idea:
 
 - first train a tiny base causal LM on plain English answers
 - freeze the base weights
@@ -3060,10 +3065,10 @@ score higher than negative controls, the judge is not useful. If generated
 answers score poorly and held-out loss is high, that is a model limitation, not
 a reason to hide the result.
 
-### What Counts As Finished For My Local Lab 3
+### What Counts As Finished For Local Lab 3
 
-I am marking Lab 3 complete in this repo because I now have runnable local
-checks for:
+For this repo, Lab 3 is complete as a local mechanics pass because it has
+runnable checks for:
 
 - chat templates
 - tokenization and decoding
@@ -3075,11 +3080,11 @@ checks for:
 - style controls
 - held-out style loss
 
-What remains for a real course/competition submission:
+For the official course path, the remaining work is:
 
 - run the official notebook on a GPU
 - use the real LFM2-1.2B tokenizer and model
-- fill the TODOs against the actual Hugging Face/PEFT APIs
+- complete the actual Hugging Face/PEFT setup in the notebook
 - use OpenRouter with an API key for the judge model
 - log traces and metrics through Opik
 - submit the notebook/report with the official final likelihood cell

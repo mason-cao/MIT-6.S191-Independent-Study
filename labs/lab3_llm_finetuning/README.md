@@ -54,6 +54,20 @@ of chat formatting, masked causal-LM loss, adapter tuning, generation, and
 evaluation. They do not claim to reproduce the official LFM2-1.2B competition
 run.
 
+The parts I need to keep straight:
+
+- chat templates turn a conversation into one serialized token sequence
+- answer masks keep the loss focused on response tokens, not the user prompt
+- causal-LM labels are shifted one token ahead
+- LoRA freezes the base model and trains low-rank adapter weights
+- generation feeds each sampled token back into the next step
+- judge-style evaluation needs negative and positive controls, not only model
+  samples
+
+The local character-level model is intentionally small. Broken generations are
+still useful here because they expose whether the training, masking, adapter,
+and evaluation plumbing is connected before I try the official GPU/API path.
+
 ## Scripts
 
 - `01_template_tokenization_probe.py`: checks the chat template, encode/decode
