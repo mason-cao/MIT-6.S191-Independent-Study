@@ -13,6 +13,26 @@ I'm building this project because I want to move past surface-level ML tutorials
 - Explore generative models through hands-on lab work, especially sequence models and modern deep learning workflows.
 - Bridge the gap between beginner projects and academically rigorous machine learning by reproducing ideas carefully instead of just following notebooks.
 
+## Official Course Snapshot
+
+Source check: I looked up the active 2026 MIT 6.S191 course page on May 15,
+2026. This is the schedule I am using for the study log:
+
+| Course item | Official date | My local status |
+| --- | --- | --- |
+| Lecture 1: Intro to Deep Learning | Mar. 30, 2026 | Foundations notes rewritten |
+| Lecture 2: Deep Sequence Modeling | Apr. 6, 2026 | Complete notes, needs another careful pass |
+| Software Lab 1: Deep Learning in Python + Music Generation | After Lecture 2 | Complete local PyTorch mechanics pass |
+| Lecture 3: Deep Computer Vision | Apr. 13, 2026 | Complete notes plus Lab 2 bridge |
+| Lecture 4: Deep Generative Modeling | Apr. 20, 2026 | Complete notes plus DB-VAE bridge |
+| Software Lab 2: Facial Detection Systems | After Lecture 4 | Complete local mechanics pass |
+| Lecture 5: Deep Reinforcement Learning | Apr. 27, 2026 | Complete notes through DQN and policy gradients |
+| Lecture 6: New Frontiers | May 4, 2026 | Complete core notes, needs final polish |
+| Software Lab 3: Fine-Tune an LLM, You Must! | After Lecture 6 | Complete local mechanics pass |
+| Lecture 7: AI for Science | May 11, 2026 | Official page still lists public materials as coming soon |
+| Lecture 8: Secrets to Massively Parallel Training | May 18, 2026 | Future relative to this May 15 study pass |
+| Lecture 9: The Three Laws of AI | May 25, 2026 | Future relative to this May 15 study pass |
+
 ## Lab Progress
 
 This is my tracker for the official MIT 6.S191 software labs.
@@ -29,19 +49,15 @@ I plan to keep updating this as I finish each official lab, re-implement section
 
 | Lecture | Status |
 | --- | --- |
-| [x] Lecture 1: Intro to Deep Learning | Complete notes |
-| [x] Lecture 2: Deep Sequence Modeling | Complete notes |
+| [x] Lecture 1: Intro to Deep Learning | Foundations notes rewritten |
+| [x] Lecture 2: Deep Sequence Modeling | Complete notes, refinement next |
 | [x] Lecture 3: Deep Computer Vision | Complete notes plus Lab 2 bridge |
 | [x] Lecture 4: Deep Generative Modeling | Complete notes plus DB-VAE bridge |
 | [x] Lecture 5: Deep Reinforcement Learning | Complete notes through DQN, policy gradients, actor-critic, simulation, and AlphaGo/AlphaZero |
-| [x] Lecture 6: Language Models and New Frontiers | Complete core notes on limitations, generalization, adversarial examples, diffusion models, protein generation, LLMs, scaling, and foundation models; source-pass expansion in progress |
-
-## Current Manual Commit Points
-
-I am not auto-committing study progress. The next realistic split is:
-
-1. `Deepen Lecture 6 robustness notes from 2026 slides`
-2. `Deepen Lecture 6 frontier-model notes and tracker`
+| [x] Lecture 6: Language Models and New Frontiers | Complete core notes on limitations, generalization, adversarial examples, diffusion models, protein generation, LLMs, scaling, and foundation models; expansion in progress |
+| [ ] Lecture 7: AI for Science | Waiting for public 2026 materials |
+| [ ] Lecture 8: Secrets to Massively Parallel Training | Future official lecture date |
+| [ ] Lecture 9: The Three Laws of AI | Future official lecture date |
 
 ## Hardware / Setup
 

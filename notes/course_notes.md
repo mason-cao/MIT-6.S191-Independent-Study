@@ -1,112 +1,255 @@
 # Course Notes
 
+## Study Source And Plan
+
+This repository is my independent-study notebook for the real MIT 6.S191 course,
+not a generic deep learning summary. I checked the active 2026 course page at
+`https://introtodeeplearning.com/` on May 15, 2026 and am using that schedule
+for this pass.
+
+The official public sequence I am following is:
+
+- Lecture 1: Intro to Deep Learning, Mar. 30, 2026
+- Lecture 2: Deep Sequence Modeling, Apr. 6, 2026
+- Software Lab 1: Deep Learning in Python and Music Generation
+- Lecture 3: Deep Computer Vision, Apr. 13, 2026
+- Lecture 4: Deep Generative Modeling, Apr. 20, 2026
+- Software Lab 2: Facial Detection Systems
+- Lecture 5: Deep Reinforcement Learning, Apr. 27, 2026
+- Lecture 6: New Frontiers, May 4, 2026
+- Software Lab 3: Fine-Tune an LLM, You Must!
+- Lecture 7: AI for Science, May 11, 2026, with public materials still marked
+  as coming soon on the course page during this pass
+- Lecture 8: Secrets to Massively Parallel Training, May 18, 2026
+- Lecture 9: The Three Laws of AI, May 25, 2026
+
+My standard for these notes: each section should teach the subject well enough
+that I could rebuild the code or explain the concept without reopening the
+slides immediately. That means I need definitions, equations, shape checks,
+failure modes, and lab connections, not only topic lists.
+
 ## Lecture 1: Intro to Deep Learning
 
-- this lecture really sets up the whole class
-- deep learning is presented as: choose a model, define a loss, optimize parameters
-- the perceptron is the basic building block
+Lecture 1 is the foundation for the whole course. The main pattern is simple:
+represent inputs as tensors, build a differentiable model, define a loss, and
+use gradients to change the parameters so the model's predictions improve.
+
+The short version of supervised deep learning is:
+
+1. Choose a parameterized function `f(x; theta)`.
+2. Run data through the function to get a prediction `y_hat`.
+3. Compare `y_hat` with the target `y` using a loss.
+4. Use backpropagation to compute gradients of the loss with respect to the
+   parameters.
+5. Use an optimizer to update the parameters.
+
+That loop is the same whether the model is a single perceptron, a CNN, an RNN,
+a VAE encoder, or a transformer. Later lectures change the architecture and the
+data type, but this training loop stays underneath everything.
 
 ### Core Setup
 
-- input: `x`
-- prediction: `y_hat = f(x; W)`
-- target: `y`
-- parameters: usually weights `W` and bias `b`
-- training objective: make `y_hat` close to `y` over the dataset
+The supervised learning setup has a few objects I need to keep separate:
 
-Most important equation from the lecture:
+- `x`: input features, such as a vector of measurements, an image tensor, or a
+  token sequence
+- `y`: the target output supplied by the dataset
+- `y_hat`: the model's prediction
+- `theta`: all trainable parameters, usually weights and biases
+- `L(y_hat, y)`: loss for one example or one batch
+- `J(theta)`: objective over the dataset or minibatch
 
-- `y_hat = g(Wx + b)`
+The basic neuron equation is:
 
-Need to remember what each part is doing:
+`y_hat = g(Wx + b)`
 
-- `Wx + b` = linear part
-- `g(...)` = nonlinearity
-- without the nonlinearity, stacking layers does not buy much because the whole thing is still just linear
+or, in the batched convention I used in the Lab 1 scripts:
+
+`Y_hat = g(XW + b)`
+
+where:
+
+- `X` has shape `(batch_size, input_features)`
+- `W` has shape `(input_features, output_features)`
+- `b` has shape `(output_features,)`
+- `XW + b` has shape `(batch_size, output_features)`
+
+The bias is broadcast across the batch. That broadcasting is convenient, but I
+should still be able to say what expansion is happening. In Lab 1,
+`02_manual_perceptron_forward.py` checks this explicitly before applying the
+sigmoid activation.
+
+The nonlinearity `g` is essential. If I stack only linear layers, the whole stack
+collapses into one larger linear map. Nonlinear activations are what let deeper
+networks represent curved decision boundaries and complicated functions.
 
 ### Perceptron
 
-- single neuron = weighted sum of inputs + activation
-- in the 2-feature example, the perceptron really is just learning a line in 2D
-- weights change slope / orientation of the decision boundary
-- bias shifts the boundary
+A perceptron is a single trainable unit:
 
-Helpful way to think about it:
+`z = w dot x + b`
 
-- inputs are coordinates
-- weights decide which directions matter more
-- bias moves the cutoff
+`y_hat = g(z)`
 
-If I ever get confused:
+For binary classification with a sigmoid, `y_hat` can be interpreted as a
+probability-like score between `0` and `1`. The decision boundary before the
+sigmoid is the set of inputs where:
 
-- check whether I can write the model as a dot product plus bias
-- check whether the output is scalar or vector
-- check whether the activation is part of the model or part of the loss setup
+`w dot x + b = 0`
+
+In two input dimensions, that boundary is a line. The weights determine the
+orientation of the line, and the bias shifts it. That makes the perceptron a
+useful first model: the geometry is still visible.
+
+For multiple outputs, I stack several perceptrons together. Each output unit gets
+its own weight vector and bias value. In matrix form, that becomes one dense
+layer. The single-neuron idea did not disappear; it got vectorized.
+
+The Lab 1 detail I want to remember:
+
+- my manual convention stores weights as `(input_features, output_features)`
+- `torch.nn.Linear` stores weights as `(output_features, input_features)`
+- copying from the manual version into `nn.Linear` therefore requires a
+  transpose, which `04_torch_nn_bridge.py` checks
 
 ### From One Perceptron to a Network
 
-- the slides move from one perceptron to multi-output perceptrons, then to feed-forward networks
-- a dense layer is really just a matrix version of the single-perceptron idea
-- one output neuron -> one set of weights
-- multiple output neurons -> stack those weight vectors into a matrix
+A feed-forward neural network composes layers:
 
-Important shape idea:
+`h_1 = g_1(W_1x + b_1)`
 
-- if `x` has shape `(m,)` and the layer outputs `n` values, then the weight object has to carry `m x n` relationships
-- this is why matrix multiplication becomes the natural language of neural nets so quickly
+`h_2 = g_2(W_2h_1 + b_2)`
+
+`y_hat = g_3(W_3h_2 + b_3)`
+
+The intermediate vectors `h_1`, `h_2`, etc. are hidden representations. The
+network is learning a sequence of transformations from raw input space into a
+space where the task is easier.
+
+The important distinction:
+
+- parameters are the learned weights and biases
+- activations are the values produced for a specific input
+- architecture is the pattern of layers and connections
+- loss is the training signal that says whether the current behavior is good
+
+When debugging, I should ask which of those four things is wrong. A shape error
+is usually architecture or tensor plumbing. Bad training may be loss,
+optimization, data, initialization, or architecture.
 
 ### Loss
 
-- predictions alone are not enough; need a number that says how wrong the model is
-- lecture introduces empirical loss / objective over the whole dataset
-- the form is basically:
-  `J(W) = (1/n) * sum L(f(x^(i); W), y^(i))`
+The model prediction is not enough by itself. Training needs a scalar objective
+that measures how wrong the prediction is.
+
+The empirical risk form is:
+
+`J(theta) = (1/n) * sum_i L(f(x_i; theta), y_i)`
 
 What this means:
 
-- `L(...)` measures error on one example
-- `J(W)` averages that across the training set
-- training means changing `W` to reduce `J(W)`
+- `L` measures the error for one example or batch element
+- the sum averages that error across the training data
+- `theta` is changed to reduce this objective
 
-Loss examples to remember:
+The loss has to match the output type:
 
-- mean squared error makes sense for continuous-valued outputs
-- classification losses are different because the model is trying to choose among classes, not predict a real number
+- regression: mean squared error or mean absolute error can make sense
+- binary classification: binary cross entropy, usually with logits in real code
+- multiclass classification: cross entropy over class logits
+- sequence prediction: cross entropy at each time step
+- generative models: often combine reconstruction, likelihood, adversarial, or
+  regularization terms
+
+One mistake to avoid: applying softmax before `CrossEntropyLoss` in PyTorch.
+`CrossEntropyLoss` expects raw logits and applies the numerically stable log
+softmax internally.
 
 ### Optimization
 
-- gradient descent is the core picture
-- update rule is: move parameters in the direction that decreases loss
-- generic step:
-  `W <- W - eta * grad J(W)`
+Gradient descent updates parameters by moving opposite the gradient:
+
+`theta <- theta - eta * grad_theta J(theta)`
 
 Things that matter here:
 
-- gradient tells direction of steepest increase, so subtracting it moves downhill
-- learning rate `eta` is step size
-- too large = unstable / overshoot
-- too small = painfully slow
+- the gradient points in the direction of steepest increase
+- subtracting the gradient moves downhill
+- `eta` is the learning rate
+- too large a learning rate can overshoot or diverge
+- too small a learning rate can make training crawl or appear stuck
+
+In actual PyTorch code, this becomes:
+
+1. `optimizer.zero_grad()`
+2. compute predictions
+3. compute scalar loss
+4. `loss.backward()`
+5. `optimizer.step()`
+
+Skipping `zero_grad()` is a classic bug because PyTorch accumulates gradients by
+default. That accumulation is useful for some advanced workflows, but it is not
+what I want in a normal minibatch training loop.
 
 ### Backpropagation
 
-- backprop is just the chain rule applied efficiently through the network
-- the lecture treats the network as a computation graph, which is the right way to think about it
-- each node contributes part of the derivative
-- gradients flow backward from loss to earlier layers
+Backpropagation is the chain rule applied efficiently to a computation graph.
+The forward pass builds intermediate values. The backward pass computes how the
+final loss changes with respect to each parameter.
 
-Need to keep straight:
+For a sigmoid perceptron with squared error:
 
-- forward pass computes activations / predictions
-- backward pass computes derivatives
-- same graph, opposite direction
+`z = XW + b`
+
+`y_hat = sigmoid(z)`
+
+`L = 0.5 * sum((y_hat - y)^2)`
+
+The local derivative pieces are:
+
+- `dL/dy_hat = y_hat - y`
+- `dy_hat/dz = y_hat * (1 - y_hat)`
+- `dL/dz = dL/dy_hat * dy_hat/dz`
+- `dL/dW = X^T @ dL/dz`
+- `dL/db = sum over batch of dL/dz`
+
+`03_manual_gradient_vs_autograd.py` compares those manual gradients against
+PyTorch autograd. That script keeps autograd from becoming a black box. It is
+doing the same chain-rule bookkeeping, just at graph scale.
+
+The mental model:
+
+- forward pass: values flow from input to prediction to loss
+- backward pass: sensitivities flow from loss back to parameters
+- parameters are updated after the gradients are available
 
 ### Why This Lecture Matters for the Lab
 
-- Lab 1 Part 1 is basically this lecture turned into code
-- tensors = how data and parameters are stored
-- matrix multiplication = how dense layers are computed
-- autograd = practical backprop
-- `torch.nn` = packaged version of the same math
+Lab 1 Part 1 is Lecture 1 turned into code:
+
+- tensors store data and model values
+- shapes determine whether operations mean what I think they mean
+- matrix multiplication implements dense layers
+- activations introduce nonlinearity
+- losses turn prediction quality into a scalar
+- autograd computes gradients
+- optimizers update parameters
+- `torch.nn.Module` packages model state and forward behavior
+
+The reason I rewrote the Lab 1 scripts in small pieces is that each script
+isolates one layer of abstraction:
+
+- `01_tensor_mechanics.py`: rank, shape, slicing, broadcasting
+- `02_manual_perceptron_forward.py`: `XW + b` and sigmoid by hand
+- `03_manual_gradient_vs_autograd.py`: manual gradients versus autograd
+- `04_torch_nn_bridge.py`: manual perceptron versus `torch.nn.Linear`
+- `05_tensor_computation_graphs.py`: small computation graphs
+- `06_models_and_autograd.py`: custom modules, `nn.Sequential`, scalar gradient
+  descent
+
+If I understand those six scripts, the later labs have a much clearer starting
+point. CNNs, LSTMs, VAEs, and LoRA-tuned language models all reuse the same
+core training mechanics.
 
 ## Lecture 2: Deep Sequence Modeling
 
@@ -159,7 +302,7 @@ This is why RNNs are different from plain feed-forward nets:
 
 - one of the most useful slides is the computational graph unrolled across time
 - that makes the recurrence much easier to reason about
-- an RNN is not magic; it is just a repeated module
+- an RNN is just a repeated module with shared parameters
 
 Important consequence:
 
@@ -2078,7 +2221,7 @@ Important idea:
 - the same optimization machinery that makes models trainable can expose
   directions where the model is brittle
 
-This makes adversarial examples feel less mysterious. The model has learned a
+This makes adversarial examples easier to reason about. The model has learned a
 high-dimensional decision surface. In high dimensions, there can be many small
 directions that do not matter to human perception but do matter to the model's
 internal features. A perturbation can be small in pixel space and still move the
@@ -2268,7 +2411,7 @@ My comparison table:
 | GAN | generator/discriminator game | sharp samples | unstable training and mode collapse |
 | Diffusion | iterative denoising from noise | high-fidelity diverse samples | many denoising steps can be computationally expensive |
 
-Diffusion models are not magic, but the iterative design gives them a different
+Diffusion models use an iterative design, which gives them a different
 failure profile. Instead of asking one network pass to invent the whole image,
 the model learns a controlled reverse process.
 
@@ -2491,22 +2634,17 @@ complete in my notes. The next work should be either the official/current Lectur
 6 material if the 2026 release differs from the archived deck, or deeper project
 work that turns one of these frontier ideas into an experiment.
 
-### Remaining Manual Commit Points For This Source Pass
+### Next Notes Pass
 
-I did not commit automatically. After the source-framing commit, the remaining
-realistic split is:
+The Lecture 6 notes are already broad, but they still need a tighter pass on the
+frontier-model material:
 
-1. `Deepen Lecture 6 robustness notes from 2026 slides`
-   - add more slide-grounded notes on out-of-distribution uncertainty,
-     adversarial examples, dataset bias, and algorithmic bias
-   - tighten the distinction between accuracy, robustness, fairness, and
-     deployment readiness
-
-2. `Deepen Lecture 6 frontier-model notes and tracker`
-   - add more slide-grounded notes on diffusion models, protein generation,
-     LLMs, scaling, and foundation models
-   - refresh the top-level tracker and next-study direction after the source
-     pass is complete
+- separate accuracy, robustness, fairness, and deployment readiness more cleanly
+- make the out-of-distribution and adversarial-example sections more concrete
+- connect diffusion models, protein generation, scaling laws, and foundation
+  models back to the earlier lectures
+- explain which parts of the Lab 3 fine-tuning workflow are local mechanics and
+  which parts require the official GPU/API notebook path
 
 ## Software Lab 3: LLM Fine-Tuning
 
@@ -2779,58 +2917,168 @@ What remains for a real course/competition submission:
 - log traces and metrics through Opik
 - submit the notebook/report with the official final likelihood cell
 
-## Lab 1
+## Software Lab 1: Deep Learning In Python And Music Generation
 
-Lab 1 makes a lot more sense after Lecture 1 and Lecture 2.
+Lab 1 is where the first two lectures become executable. Part 1 turns Lecture
+1 into tensor operations, perceptrons, computation graphs, modules, gradients,
+and optimization. Part 2 turns Lecture 2 into a character-level sequence model
+that learns ABC music notation.
 
-Part 1: Intro to Deep Learning in Python
+### Part 1: PyTorch Foundations
 
-- basically the coding version of Lecture 1
-- tensors, tensor operations, simple computation graphs, perceptrons, `torch.nn`, and autograd
-- this is where the math has to turn into exact tensor shapes and exact operations
+The official lab starts with the most basic question: what is the data object
+that deep learning code manipulates? In PyTorch, the answer is usually a tensor.
 
-Things to check carefully while doing Part 1:
+The details that matter:
 
-- rank / shape of every tensor
-- what is batch dimension vs. feature dimension
-- when bias is being broadcast
-- when a vector should actually be a matrix because batching is involved
-- what requires gradients and what does not
+- rank: number of axes
+- shape: size along each axis
+- dtype: numerical type
+- device: CPU or accelerator placement
+- gradient tracking: whether operations involving the tensor are recorded for
+  autograd
 
-Part 2: Music Generation with RNNs
+The local script `01_tensor_mechanics.py` makes this concrete:
 
-- coding version of Lecture 2
-- sequence modeling becomes concrete through character-level music generation in ABC notation
-- this is where recurrence stops being a diagram and becomes an actual training loop + sampling procedure
+- scalar tensor: rank `0`
+- one-value vector: rank `1`, shape `(1,)`
+- matrix: rank `2`
+- image batch: rank `4`, shape `(batch, channels, height, width)`
 
-## Connections Between the Two Lectures and Lab 1
+The image-batch convention matters because later CNN code expects the channel
+dimension before height and width. If I accidentally use `(batch, height, width,
+channels)` in PyTorch, the model will interpret image width as channels and the
+convolutions will be wrong.
 
-- Lecture 1 gives the feed-forward foundation
-- Lecture 2 explains why sequential data needs different machinery
-- Lab 1 is split the same way:
-  Part 1 = feed-forward / PyTorch basics
-  Part 2 = sequence modeling / RNN music generation
+### Broadcasting And Bias
 
-Nice thing about the course design:
+Bias addition is the first place broadcasting appears in model code. In the
+manual perceptron:
 
-- the lectures give the concepts
-- the lab makes the concepts concrete almost immediately
+`linear_output = X @ W`
 
-## Lab 1 Coverage in This Repo
+`shifted_output = linear_output + b`
 
-- Part 1 is now covered by:
-  tensor mechanics, manual perceptron forward pass, manual gradients,
-  computation-graph examples, `nn.Module`, `nn.Sequential`, autograd,
-  and the scalar gradient-descent demo
-- Part 2 is now covered by:
-  ABC data loading, vocabulary building, vectorization, batching,
-  LSTM training, text generation, and exporting generated songs
+If `linear_output` has shape `(batch_size, output_features)` and `b` has shape
+`(output_features,)`, PyTorch broadcasts `b` across every row. That is what I
+want, but it is still a real operation: every example gets the same learned bias
+per output unit.
 
-What still matters when I actually run it on the Ubuntu box:
+This is a good debugging rule: whenever a tensor with fewer dimensions is added
+or multiplied against a larger tensor, I should be able to explain which axes are
+being reused.
 
-- train the LSTM long enough to get usable ABC output
-- check whether the generated text contains complete song snippets
-- render one generated song to audio with `abc2midi` + `timidity`
+### Manual Perceptron To `torch.nn`
+
+The local scripts deliberately climb the abstraction ladder:
+
+1. `02_manual_perceptron_forward.py` computes `sigmoid(XW + b)` directly.
+2. `03_manual_gradient_vs_autograd.py` derives the gradients by hand.
+3. `04_torch_nn_bridge.py` reproduces the manual result with `nn.Linear`.
+4. `06_models_and_autograd.py` packages the same idea inside `nn.Module`.
+
+The point is not that I should avoid PyTorch abstractions. The point is that
+`torch.nn` should feel like a packaging layer around math I can still see.
+
+The `nn.Linear` convention is easy to forget:
+
+- manual notes: `W` is `(input_features, output_features)`
+- `nn.Linear`: `.weight` is `(output_features, input_features)`
+
+That is why copying manual weights into `nn.Linear` requires a transpose.
+
+### Autograd And The Training Loop
+
+The lab's autograd section is the practical version of backpropagation.
+
+For a normal training step, the order is:
+
+1. switch the model to training mode when needed
+2. clear old gradients with `optimizer.zero_grad()`
+3. run the forward pass
+4. compute one scalar loss
+5. call `loss.backward()`
+6. call `optimizer.step()`
+
+The scalar gradient-descent demo in `06_models_and_autograd.py` is useful
+because it strips the idea down to one parameter. If the loss is `(x - 4)^2`,
+then gradient descent should move `x` toward `4`. A neural network training loop
+is the same idea with many parameters and a more complicated loss surface.
+
+### Part 2: Music As Sequence Modeling
+
+The second half of Lab 1 uses ABC notation for Irish folk music. This is a
+good sequence-modeling example because the raw data is text, but the text has
+musical structure:
+
+- song metadata starts with fields like `X:`, `T:`, `M:`, `K:`
+- notes and durations are encoded as characters
+- local syntax matters, but longer-range song structure also matters
+
+The pipeline is:
+
+1. Load songs from the official ABC dataset.
+2. Join the songs into one training string.
+3. Build a sorted character vocabulary.
+4. Convert every character to an integer token.
+5. Sample fixed-length windows.
+6. Use the same windows shifted one character right as targets.
+
+For a sequence like:
+
+`A B C D`
+
+the model sees:
+
+- input: `A B C`
+- target: `B C D`
+
+That one-character shift is the entire next-token prediction objective.
+
+### LSTM Model And Generation
+
+The local music model has three conceptual pieces:
+
+- embedding layer: turns character IDs into learned vectors
+- LSTM: updates a hidden state across the sequence
+- linear head: maps each hidden state to vocabulary logits
+
+During training, the model predicts the next character at every time step, and
+cross entropy compares the logits with the shifted target IDs.
+
+During generation, the loop changes:
+
+1. start with a prompt character such as `X`
+2. predict logits for the next character
+3. divide logits by temperature
+4. sample a character
+5. feed that sampled character back into the model
+6. repeat
+
+Temperature controls randomness:
+
+- lower temperature sharpens the distribution and makes output more conservative
+- higher temperature flattens the distribution and makes output more surprising
+- too high can break ABC syntax
+- too low can make generation repetitive
+
+The local script can save generated text and ABC snippets. Rendering to WAV is
+optional because it depends on external tools: `abc2midi` and `timidity`.
+
+### Lab 1 Takeaway
+
+Lab 1 is not just a setup exercise. It establishes the whole course workflow:
+
+- represent data as tensors
+- build a differentiable model
+- compute a task-appropriate loss
+- use backpropagation and an optimizer
+- inspect shapes and outputs instead of trusting the notebook
+- connect the lecture diagram to a runnable training loop
+
+That is why the local Lab 1 folder now has small scripts instead of one large
+notebook. Each script is a checkpoint for one thing I need to understand before
+the later models become larger and harder to debug.
 
 ## Lab 2
 
@@ -2968,16 +3216,9 @@ The second problem is harder. A dataset can have many face examples and still be
 biased if those examples are concentrated around a narrow set of appearances,
 lighting conditions, poses, or camera qualities.
 
-### Two Manual Commit Points For This Progress
+### Lab 2 Review Note
 
-I did not commit automatically. If I commit this work manually, the two realistic
-commit points are:
-
-1. `Finish Lab 2 MNIST training comparison`
-   - Adds the real training/evaluation loop for dense vs CNN MNIST models.
-   - Moves Lab 2 Part 1 from probes to a complete local training comparison.
-
-2. `Finish Lab 2 facial debiasing mechanics and notes`
-   - Adds the local DB-VAE/facial-detection mechanics script.
-   - Expands Lecture 4 and Lab 2 notes enough that future me can explain the
-     method without reopening the notebook immediately.
+The next Lab 2 rewrite should keep the MNIST training comparison and the DB-VAE
+debiasing mechanics together. The lab's main lesson is the transition from
+ordinary image accuracy to subgroup evaluation and representation-aware
+resampling.
