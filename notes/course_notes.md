@@ -4,7 +4,7 @@
 
 This repository is my independent-study notebook for MIT 6.S191. I checked the
 active 2026 course page at `https://introtodeeplearning.com/` on May 15, 2026
-and am using that schedule for this pass.
+and am using that schedule for these notes.
 
 The official public sequence I am following is:
 
@@ -17,10 +17,12 @@ The official public sequence I am following is:
 - Lecture 5: Deep Reinforcement Learning, Apr. 27, 2026
 - Lecture 6: New Frontiers, May 4, 2026
 - Software Lab 3: Fine-Tune an LLM, You Must!
-- Lecture 7: AI for Science, May 11, 2026, with public materials still marked
-  as coming soon on the course page during this pass
-- Lecture 8: Secrets to Massively Parallel Training, May 18, 2026
-- Lecture 9: The Three Laws of AI, May 25, 2026
+- Lecture 7: AI for Science, May 11, 2026, with public abstract available and
+  slides/video still pending as of May 15, 2026
+- Lecture 8: Secrets to Massively Parallel Training, May 18, 2026, future-dated
+  as of May 15, 2026 but with public abstract available
+- Lecture 9: The Three Laws of AI, May 25, 2026, future-dated as of May 15,
+  2026 but with public abstract available
 
 My standard for these notes: each section should teach the subject well enough
 that I could rebuild the code or explain the concept without reopening the
@@ -2026,7 +2028,7 @@ skeptical, and what newer model families are trying to fix or extend.
 
 The 2026 deck is titled "Deep Learning Limitations and New Frontiers," and that
 wording is doing a lot of work. This lecture is not just a showcase of recent
-models. It is a review point after the first five lectures:
+models. It is a pause after the first five lectures:
 
 - Lecture 1: neural networks as trainable function approximators
 - Lecture 2: sequence modeling and next-step prediction
@@ -3434,9 +3436,196 @@ The second problem is harder. A dataset can have many face examples and still be
 biased if those examples are concentrated around a narrow set of appearances,
 lighting conditions, poses, or camera qualities.
 
-### Lab 2 Review Note
+## Lecture 7: AI For Science
 
-The next Lab 2 rewrite should keep the MNIST training comparison and the DB-VAE
-debiasing mechanics together. The lab's main lesson is the transition from
-ordinary image accuracy to subgroup evaluation and representation-aware
-resampling.
+The public course page lists Lecture 7 as "AI for Science" by Chris Bishop from
+Microsoft Research AI for Science. During this May 15 pass, the abstract is
+available but the full slides and video are still marked as pending on the
+schedule.
+
+The framing is different from the earlier lectures. Instead of treating deep
+learning as only a prediction or generation tool, the lecture positions AI
+inside the scientific discovery loop:
+
+1. Form a hypothesis.
+2. Build or choose a model.
+3. Generate predictions or candidates.
+4. Test against physical reality.
+5. Refine the hypothesis and repeat.
+
+The important phrase for me is "tested against the physical world." Scientific
+AI is not finished when the model produces a plausible output. A weather model,
+material candidate, or drug molecule still has to survive validation outside the
+training objective.
+
+The public abstract names three example areas:
+
+- atmospheric modeling
+- materials design
+- drug discovery
+
+That connects back to the course in a useful way:
+
+- sequence models can represent biological strings or time-series data
+- generative models can propose candidate structures or molecules
+- uncertainty matters because experiments are expensive
+- distribution shift matters because scientific settings often involve rare or
+  extreme cases
+- evaluation has to include external validation, not only held-out loss
+
+My takeaway: AI for science is not "let the model replace the scientist." It is
+closer to using models to search, simulate, prioritize, and accelerate parts of
+the discovery pipeline while keeping experiment and domain knowledge in the
+loop.
+
+## Lecture 8: Secrets To Massively Parallel Training
+
+Lecture 8 is listed for May 18, 2026, so it is future-dated as of May 15. The
+public course page already shows the talk description. It is about scaling deep
+neural network training to thousands of GPUs.
+
+This lecture answers a systems question that the earlier model lectures mostly
+hide: what does it take to train the large models that make modern scaling laws
+possible?
+
+The public abstract points to several topics:
+
+- GPUs versus CPUs for training throughput
+- scaling laws and why larger models/datasets can improve performance
+- memory requirements during training
+- activation checkpointing
+- offloading
+- data parallelism
+- tensor parallelism
+- pipeline parallelism
+- sequence or context parallelism
+- DeepSpeed ZeRO and FSDP-style sharding
+- Mixture of Experts and expert parallelism
+- network bandwidth as a bottleneck
+- an LFM2 case study
+
+The conceptual link to the rest of the course:
+
+- Lecture 1 explains one training step.
+- Lecture 2-6 explain larger architectures and objectives.
+- Lecture 8 asks how that training step is distributed when the model, data, and
+  optimizer state no longer fit comfortably on one device.
+
+The main systems distinction I need:
+
+- data parallelism: copy the model across devices and split examples
+- tensor parallelism: split large tensor operations across devices
+- pipeline parallelism: split layers or blocks across devices
+- sequence/context parallelism: split long-sequence work across devices
+- sharding: split parameters, gradients, or optimizer state to reduce memory per
+  device
+
+This also changes how I think about "model size." Parameter count is not the
+only cost. Training also needs activations, gradients, optimizer state,
+communication, checkpointing, and fault tolerance. The compute graph becomes a
+distributed systems problem.
+
+## Lecture 9: The Three Laws Of AI
+
+Lecture 9 is listed for May 25, 2026, so it is also future-dated as of May 15.
+The public course page lists Douglas Blank from Comet ML and describes a
+safety-focused lecture based on a modern version of Asimov-style AI laws.
+
+The important connection is to Lecture 6. Once AI systems become autonomous,
+interactive, or deployed in high-stakes settings, the problem is not only model
+accuracy. It is the safety layer around the model:
+
+- what actions the system is allowed to take
+- how it handles uncertainty
+- when it asks for help
+- how behavior is monitored
+- how failures are logged and corrected
+- what constraints prevent harm
+
+The public abstract says the lecture includes interactive demonstrations that
+challenge current deep learning safety protocols. That is a useful ending point
+for the course because it turns model limitations into system requirements.
+
+My working version of the lesson:
+
+- a model can optimize the given objective and still behave badly
+- safety cannot depend only on good average-case benchmark performance
+- monitoring and feedback are part of deployment, not optional extras
+- ethical constraints need to be operationalized as tests, policies, and system
+  boundaries
+
+This loops back to several earlier notes:
+
+- Lab 2: subgroup failure can hide behind average accuracy
+- Lecture 5: bad reward design can produce unwanted behavior
+- Lecture 6: models can be overconfident under distribution shift
+- Lab 3: live LLM systems need tracing and repeatable evaluation
+
+## Final Course Synthesis
+
+The course now reads to me as one connected arc:
+
+1. Neural networks are differentiable function approximators trained by loss
+   minimization.
+2. Sequence models add time, memory, and next-token prediction.
+3. CNNs add spatial inductive bias for images.
+4. Generative models learn data distributions and latent structure.
+5. RL changes the setup from prediction to action under delayed reward.
+6. Frontier models scale these ideas but also amplify robustness, bias,
+   uncertainty, and deployment problems.
+7. Scientific and large-scale training lectures show that real impact depends on
+   external validation and systems engineering.
+8. The safety lecture closes the loop: a model is only one component inside a
+   larger decision system.
+
+The biggest technical habits I built:
+
+- check tensor shapes before trusting a model
+- distinguish logits, probabilities, losses, and metrics
+- separate training loss from held-out behavior
+- inspect subgroup performance instead of only average accuracy
+- treat generation quality as an evaluation problem, not only a sampling problem
+- keep local mechanics separate from official large-scale results
+- write down what a model has not proven yet
+
+The labs gave me a practical progression:
+
+- Lab 1: tensors, autograd, dense layers, RNN music generation
+- Lab 2: CNNs, MNIST training, facial detection, VAE-based debiasing
+- Lab 3: chat formatting, answer masking, causal-LM loss, LoRA-style adapters,
+  generation, and judge-style evaluation
+
+My strongest remaining project direction is to extend Lab 2:
+
+`Can latent-space resampling improve worst-group face-detection performance
+without hiding tradeoffs behind average accuracy?`
+
+That project is feasible because the repo already has:
+
+- a standard CNN face detector
+- a DB-VAE mechanics implementation
+- grouped evaluation code
+- synthetic data for offline smoke tests
+
+The real project version would need:
+
+- the official CelebA/ImageNet/PPB data path
+- a GPU-backed training run
+- overall and subgroup metrics
+- false positive and false negative rates by group
+- calibration or confidence analysis by group
+- examples of failure cases
+
+The result I would want is not just "DB-VAE is better." A useful result would
+show the tradeoff:
+
+- average accuracy
+- worst-group accuracy
+- subgroup false negatives
+- subgroup confidence
+- how resampling changes those metrics
+- where the method still fails
+
+That would connect the technical core of the course to the part I care about
+most: building models carefully enough that I can explain both what they do and
+where the evidence stops.

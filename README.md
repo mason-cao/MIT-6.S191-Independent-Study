@@ -29,9 +29,9 @@ Source check: I looked up the active 2026 MIT 6.S191 course page on May 15,
 | Lecture 5: Deep Reinforcement Learning | Apr. 27, 2026 | RL notes rewritten through DQN, policy gradients, and actor-critic |
 | Lecture 6: New Frontiers | May 4, 2026 | Frontier-model notes rewritten |
 | Software Lab 3: Fine-Tune an LLM, You Must! | After Lecture 6 | Local LLM fine-tuning mechanics pass complete |
-| Lecture 7: AI for Science | May 11, 2026 | Official page still lists public materials as coming soon |
-| Lecture 8: Secrets to Massively Parallel Training | May 18, 2026 | Future relative to this May 15 study pass |
-| Lecture 9: The Three Laws of AI | May 25, 2026 | Future relative to this May 15 study pass |
+| Lecture 7: AI for Science | May 11, 2026 | Public abstract notes added; slides/video still pending |
+| Lecture 8: Secrets to Massively Parallel Training | May 18, 2026 | Future-dated; public abstract notes added |
+| Lecture 9: The Three Laws of AI | May 25, 2026 | Future-dated; public abstract notes added |
 
 ## Lab Progress
 
@@ -55,9 +55,9 @@ I plan to keep updating this as I finish each official lab, re-implement section
 | [x] Lecture 4: Deep Generative Modeling | Generative modeling and DB-VAE notes rewritten |
 | [x] Lecture 5: Deep Reinforcement Learning | RL notes rewritten through DQN, policy gradients, actor-critic, simulation, and AlphaGo/AlphaZero |
 | [x] Lecture 6: Language Models and New Frontiers | Frontier notes rewritten across limitations, diffusion, protein generation, LLMs, scaling, and foundation models |
-| [ ] Lecture 7: AI for Science | Waiting for public 2026 materials |
-| [ ] Lecture 8: Secrets to Massively Parallel Training | Future official lecture date |
-| [ ] Lecture 9: The Three Laws of AI | Future official lecture date |
+| [x] Lecture 7: AI for Science | Abstract-level notes added; waiting for full public materials |
+| [ ] Lecture 8: Secrets to Massively Parallel Training | Future official lecture date; abstract-level notes added |
+| [ ] Lecture 9: The Three Laws of AI | Future official lecture date; abstract-level notes added |
 
 ## Hardware / Setup
 
