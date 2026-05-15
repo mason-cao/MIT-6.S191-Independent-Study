@@ -47,24 +47,12 @@ especially on held-out prompts. That is a feature of the study setup, not a
 hidden result: the point here is to understand the training/evaluation plumbing
 well enough to debug the official notebook later.
 
-## Manual Commit Points
+## Study Notes
 
-No commits have been created automatically. The planned realistic split is:
-
-1. `Start Lab 3 LLM templates and tokenization notes`
-   - Lab 3 README and local source caveats
-   - shared template/tokenizer/data utilities
-   - first prompt/tokenization/masking probe
-
-2. `Add Lab 3 LoRA fine-tuning mechanics`
-   - tiny causal transformer
-   - base pretraining followed by LoRA-only style tuning
-   - parameter-count and generation checks
-
-3. `Finish Lab 3 evaluation notes and progress tracking`
-   - offline judge-style evaluation
-   - held-out style likelihood
-   - README, course notes, and top-level progress updates
+The main boundary in this folder is scale. The local scripts check the mechanics
+of chat formatting, masked causal-LM loss, adapter tuning, generation, and
+evaluation. They do not claim to reproduce the official LFM2-1.2B competition
+run.
 
 ## Scripts
 

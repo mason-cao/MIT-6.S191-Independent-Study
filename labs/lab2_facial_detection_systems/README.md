@@ -40,18 +40,18 @@ If I want official lab/competition numbers later, the next step is to run the
 official PyTorch notebook on a GPU-backed environment with the real datasets and
 copy the final grouped evaluation into this repo as an experiment note.
 
-## Manual Commit Points
+## Study Notes
 
-No commits have been created automatically. A realistic split for the current
-work would be:
+The important split in this lab is between average accuracy and subgroup
+behavior. MNIST is a clean place to practice image tensors, logits, cross
+entropy, training loops, and CNN inductive bias. The facial detection section
+then raises the harder question: whether the detector works evenly across
+different parts of the data distribution.
 
-1. `Finish Lab 2 MNIST training comparison`
-   - `04_mnist_training_comparison.py`
-   - README/course-note updates for MNIST training and evaluation
-
-2. `Finish Lab 2 facial debiasing mechanics and notes`
-   - `05_facial_debiasing_mechanics.py`
-   - DB-VAE, latent resampling, fairness-evaluation, and Lecture 4 notes
+The DB-VAE section is the key bridge to Lecture 4. The model learns a supervised
+face/not-face output and an unsupervised latent representation of face images.
+The latent representation is used to resample underrepresented regions during
+training. That is different from balancing only the face/non-face labels.
 
 ## Scripts
 

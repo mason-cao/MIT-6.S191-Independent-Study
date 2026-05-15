@@ -499,10 +499,18 @@ Important reminder:
 - the network does not receive the idea of a "digit" or "face"
 - it receives pixel intensities
 - all semantic structure has to be learned from patterns in those numbers
+- the tensor layout matters before the model sees anything
 
-This is why computer vision is a good test case for deep learning. The raw input
-is low-level and high-dimensional, but the desired output can be very semantic:
-digit identity, face/non-face, object box, steering angle, disease label, etc.
+My shape rule for PyTorch vision code:
+
+- keep batches as `(N, C, H, W)`
+- check `C` before the first convolution
+- compute the flatten size before writing the first dense layer
+- do not assume a tensor is image-shaped just because it has four dimensions
+
+Computer vision is a good stress test for deep learning because the raw input is
+low-level and high-dimensional, while the desired output can be semantic: digit
+identity, face/non-face, object box, steering angle, disease label, etc.
 
 ### Why Fully Connected Layers Are Not Enough For Images
 
@@ -523,6 +531,14 @@ Problems with flattening:
 
 The lecture's answer is convolution: learn local feature detectors and reuse the
 same detector across the whole image.
+
+For my own code, the difference between the dense baseline and the CNN is not
+just accuracy. It is the prior each model starts with:
+
+- dense baseline: every pixel can connect independently to every hidden unit
+- CNN: nearby pixels are processed together first
+- dense baseline: the same edge in two locations needs separate weights
+- CNN: one learned filter can respond across the image
 
 ### From Hand-Engineered Features To Learned Features
 
@@ -570,6 +586,11 @@ Applying this to the starter Lab 2 CNN:
 
 That matches the shape path I checked in the code: `(batch, 1, 28, 28)` becomes
 `(batch, 24, 26, 26)` after the first convolution.
+
+The parameter count is separate from the output tensor size. A `3x3` convolution
+with `1` input channel and `24` output channels has `24 * 1 * 3 * 3 = 216`
+kernel weights, plus `24` biases if bias is on. The layer produces many output
+values because the same small filter is reused at many spatial locations.
 
 ### Why Convolutions Help
 
@@ -682,17 +703,10 @@ Then it moves to facial detection and bias:
 - evaluation has to care about subgroup performance, not only average accuracy
 - debiasing requires thinking about data distribution, not only model architecture
 
-My original stopping point was before the full training run:
-
-- understand shapes
-- inspect a real or synthetic batch
-- define the baseline model carefully
-- hold off on marking Lab 2 complete until I train/evaluate the MNIST models
-  and implement the facial detection/debiasing mechanics
-
-That stopping point has now been cleared for the local repo. The only remaining
-caveat is that real CelebA/ImageNet/PPB numbers require the official dataset
-path and a GPU-backed run.
+In this repo, the MNIST scripts now cover the path from shape checks to an
+actual dense-vs-CNN training comparison. The remaining boundary is the face
+dataset path: real CelebA/ImageNet/PPB numbers require the official notebook,
+datasets, and a GPU-backed run.
 
 ### Lecture 3 Follow-Up: Details I Should Not Skip
 
@@ -861,6 +875,15 @@ Important distinction:
 If I add softmax before `CrossEntropyLoss`, I am making optimization worse and
 also mixing up model output with presentation output.
 
+What I want from the MNIST comparison:
+
+- dense model: useful baseline, but it ignores image locality after flattening
+- CNN: should learn local stroke features with fewer spatial assumptions broken
+- train metrics: show whether the model can fit the training distribution
+- test metrics: show whether those learned features transfer to held-out digits
+- confusion matrix: shows which digit pairs the model confuses, not just the
+  average accuracy
+
 ### Lab 2 Part 2: Facial Detection And Debiasing
 
 The facial detection part raises a different issue from MNIST. MNIST asks:
@@ -901,6 +924,11 @@ as real fairness results. It does check the moving parts that matter for the
 official lab: binary CNN logits, `BCEWithLogitsLoss`, grouped face-probability
 evaluation, VAE reconstruction/KL losses, reparameterization, and adaptive
 resampling over latent variables.
+
+The AIES paper behind the lab makes the key distinction clearer: class balance
+is not enough. The face class itself can be internally imbalanced across latent
+features such as skin tone, pose, illumination, and occlusion. A detector can
+have good overall accuracy while still showing high variance across subgroups.
 
 ## Lecture 4: Deep Generative Modeling
 
@@ -986,6 +1014,11 @@ The VAE objective has two pressures:
 - latent regularization: make the learned latent distribution stay close to a
   simple prior, usually a unit Gaussian
 
+The KL term has a specific job. If the encoder predicts a distribution that
+drifts far away from the unit Gaussian prior, random samples from the prior may
+decode badly. The KL penalty keeps the latent space smoother and more usable for
+sampling.
+
 In my PyTorch script, I wrote the per-example VAE loss as:
 
 `L_VAE = reconstruction_loss + c * L_KL`
@@ -1004,6 +1037,13 @@ This is the key tradeoff:
   become messy
 - too much KL pressure: the latent space is regularized, but reconstructions may
   lose detail
+
+For a diagonal Gaussian encoder, the common closed form is:
+
+`L_KL = -0.5 * sum(1 + log(sigma^2) - mu^2 - sigma^2)`
+
+The exact implementation may store `logvar` or `logsigma`, so I need to check
+which convention a script uses before copying the formula.
 
 ### Reparameterization Trick
 
@@ -1059,6 +1099,11 @@ That design makes sense:
 - only face examples shape the latent space used for debiasing
 - the learned latent space is then used to find underrepresented face features
 
+The paper frames this as a semi-supervised model: one encoder output is
+explicitly supervised for the classification task, while the other latent
+variables are learned from reconstruction. That is why DB-VAE sits between
+ordinary supervised classification and unsupervised representation learning.
+
 ### Adaptive Resampling
 
 The resampling procedure is the most important algorithmic idea in the lab.
@@ -1074,6 +1119,14 @@ The lab's strategy is:
 2. Estimate how densely each latent region is represented.
 3. Assign higher sampling probability to examples in sparse regions.
 4. Train future batches with this updated sampling distribution.
+
+A simple way to remember the sampling rule:
+
+- common latent region -> high density -> lower sampling probability
+- rare latent region -> low density -> higher sampling probability
+
+The goal is not to synthesize new faces. The goal is to make future training
+batches draw more often from real examples that represent rare latent features.
 
 This is not the same as simply balancing class labels. The face/not-face classes
 could be balanced while the face class is still internally skewed toward certain
@@ -1093,6 +1146,11 @@ What I should be careful about:
 - the evaluation still needs a balanced, labeled test set across the sensitive
   categories I care about
 - synthetic smoke tests prove the code path, not real-world fairness
+
+For this repo, the local DB-VAE script is a mechanics check. It shows that I can
+compute the classifier loss, reconstruction loss, KL loss, reparameterized
+sample, grouped evaluation, and latent-resampling probabilities. It does not
+show that a real deployed face detector is fair.
 
 ## Lecture 5: Deep Reinforcement Learning
 

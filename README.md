@@ -23,8 +23,8 @@ Source check: I looked up the active 2026 MIT 6.S191 course page on May 15,
 | Lecture 1: Intro to Deep Learning | Mar. 30, 2026 | Foundations notes rewritten |
 | Lecture 2: Deep Sequence Modeling | Apr. 6, 2026 | Sequence-modeling notes rewritten |
 | Software Lab 1: Deep Learning in Python + Music Generation | After Lecture 2 | Complete local PyTorch mechanics pass |
-| Lecture 3: Deep Computer Vision | Apr. 13, 2026 | Complete notes plus Lab 2 bridge |
-| Lecture 4: Deep Generative Modeling | Apr. 20, 2026 | Complete notes plus DB-VAE bridge |
+| Lecture 3: Deep Computer Vision | Apr. 13, 2026 | Vision notes and Lab 2 bridge rewritten |
+| Lecture 4: Deep Generative Modeling | Apr. 20, 2026 | Generative modeling and DB-VAE notes rewritten |
 | Software Lab 2: Facial Detection Systems | After Lecture 4 | Complete local mechanics pass |
 | Lecture 5: Deep Reinforcement Learning | Apr. 27, 2026 | Complete notes through DQN and policy gradients |
 | Lecture 6: New Frontiers | May 4, 2026 | Complete core notes, needs final polish |
@@ -51,8 +51,8 @@ I plan to keep updating this as I finish each official lab, re-implement section
 | --- | --- |
 | [x] Lecture 1: Intro to Deep Learning | Foundations notes rewritten |
 | [x] Lecture 2: Deep Sequence Modeling | Sequence-modeling notes rewritten |
-| [x] Lecture 3: Deep Computer Vision | Complete notes plus Lab 2 bridge |
-| [x] Lecture 4: Deep Generative Modeling | Complete notes plus DB-VAE bridge |
+| [x] Lecture 3: Deep Computer Vision | Vision notes and Lab 2 bridge rewritten |
+| [x] Lecture 4: Deep Generative Modeling | Generative modeling and DB-VAE notes rewritten |
 | [x] Lecture 5: Deep Reinforcement Learning | Complete notes through DQN, policy gradients, actor-critic, simulation, and AlphaGo/AlphaZero |
 | [x] Lecture 6: Language Models and New Frontiers | Complete core notes on limitations, generalization, adversarial examples, diffusion models, protein generation, LLMs, scaling, and foundation models; expansion in progress |
 | [ ] Lecture 7: AI for Science | Waiting for public 2026 materials |
