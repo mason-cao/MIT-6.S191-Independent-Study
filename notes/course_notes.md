@@ -2,10 +2,9 @@
 
 ## Study Source And Plan
 
-This repository is my independent-study notebook for the real MIT 6.S191 course,
-not a generic deep learning summary. I checked the active 2026 course page at
-`https://introtodeeplearning.com/` on May 15, 2026 and am using that schedule
-for this pass.
+This repository is my independent-study notebook for MIT 6.S191. I checked the
+active 2026 course page at `https://introtodeeplearning.com/` on May 15, 2026
+and am using that schedule for this pass.
 
 The official public sequence I am following is:
 
@@ -253,113 +252,223 @@ core training mechanics.
 
 ## Lecture 2: Deep Sequence Modeling
 
-- lecture 2 changes the data type completely
-- now the input is not just one vector; it is an ordered sequence
-- the key issue is dependency across time
+Lecture 2 changes the shape of the learning problem. In Lecture 1, I could
+think about a fixed input vector going through a feed-forward network. In
+sequence modeling, the input is ordered:
+
+`x_1, x_2, ..., x_T`
+
+The order is part of the data. If I shuffle the tokens in a sentence, frames in
+a video, or notes in a melody, I have changed the example.
+
+The lecture's main question is: how can a neural network use information from
+earlier time steps when it makes a decision later?
 
 ### What Changes in Sequence Modeling
 
-- order matters now
-- length can vary
-- current prediction may depend on something many steps earlier
+Sequence data has several complications that do not appear in ordinary
+fixed-vector classification:
+
+- examples can have different lengths
+- the same value can mean different things depending on position
+- local context and long-range context can both matter
+- the model may need to output one value, one value per time step, or a new
+  generated sequence
+- training often reuses the same parameters across many time steps
 
 Examples from the lecture:
 
-- predict the next word
-- sentiment classification from a sequence of words
-- later in the lab: generate music one token / character at a time
+- language modeling: predict the next word or token
+- sentiment classification: map a whole sentence to a label
+- speech recognition: map audio frames to text
+- time-series forecasting: predict future values from past observations
+- music generation: predict the next character in ABC notation
 
-This is the main mental shift:
+I need to keep the input/output patterns straight:
 
-- feed-forward setup: one input -> one output
-- sequence setup: inputs and outputs are indexed by time
+- one-to-one: fixed input to fixed output, like normal image classification
+- many-to-one: sequence to one label, like sentiment
+- one-to-many: one conditioning input to a generated sequence
+- many-to-many, aligned: output at each time step
+- many-to-many, unaligned: sequence translation where input/output lengths may
+  differ
+
+Lab 1 uses a many-to-many aligned training objective. Every input character gets
+a next-character target.
 
 ### RNN Idea
 
-- RNN introduces a hidden state that gets updated every time step
-- that hidden state is supposed to summarize useful past context
-- same parameters are reused at every step
+The basic recurrent neural network adds a hidden state. The hidden state is the
+model's running summary of the sequence so far.
 
-Useful way to think about the recurrence:
+At time `t`:
 
-- input at time `t`: `x_t`
-- hidden state from previous step: `h_(t-1)`
+- input: `x_t`
+- previous hidden state: `h_(t-1)`
 - new hidden state: `h_t`
-- output: `y_hat_t`
+- optional output: `y_hat_t`
 
-The exact formula can vary, but the pattern is:
+A simple recurrence looks like:
 
-- combine current input with previous hidden state
-- update hidden state
-- optionally produce an output
+`h_t = tanh(W_xh x_t + W_hh h_(t-1) + b_h)`
 
-This is why RNNs are different from plain feed-forward nets:
+`y_hat_t = W_hy h_t + b_y`
 
-- they have memory, at least in principle
-- the same cell is reused across time
+The important design choice is parameter sharing. The same `W_xh`, `W_hh`, and
+`W_hy` are reused at every time step. The model is not learning separate weights
+for "first character," "second character," and "third character." It is learning
+one update rule that can be applied repeatedly.
+
+That makes RNNs natural for variable-length data. The model can process a
+sequence by applying the same cell until it reaches the end.
 
 ### Unrolling Across Time
 
-- one of the most useful slides is the computational graph unrolled across time
-- that makes the recurrence much easier to reason about
-- an RNN is just a repeated module with shared parameters
+The unrolled computation graph is the clearest way to think about an RNN.
+Instead of imagining a loop, I can draw one copy of the RNN cell per time step:
 
-Important consequence:
+`x_1 -> h_1 -> y_hat_1`
 
-- the hidden state creates a path from earlier inputs to later outputs
-- when training, gradients have to move backward through all those time steps
+`x_2 + h_1 -> h_2 -> y_hat_2`
+
+`x_3 + h_2 -> h_3 -> y_hat_3`
+
+and so on.
+
+Those are not separate learned cells. They are repeated applications of the same
+cell. Unrolling only makes the computation graph visible.
+
+Two consequences matter:
+
+- information from earlier inputs reaches later predictions through the hidden
+  state
+- gradients from later losses have to travel backward through the unrolled time
+  steps
 
 ### BPTT
 
-- BPTT = backpropagation through time
-- basically standard backprop, but on the unrolled sequence graph
-- the longer the sequence, the longer the gradient path
+Backpropagation through time is normal backpropagation applied to the unrolled
+sequence graph. The new complication is parameter sharing. Since the same
+weights are used at each time step, the final gradient for a shared weight is
+the sum of its contributions across time.
 
-What to remember:
+For language modeling or music modeling, the loss is often computed at every
+time step:
 
-- errors at later time steps influence earlier states
-- parameter sharing means the same weights collect gradient contributions from many time steps
-- sequence length affects both memory usage and optimization difficulty
+`L = sum_t cross_entropy(y_hat_t, y_t)`
+
+Then BPTT asks how each shared parameter affected all of those losses.
+
+Practical implications:
+
+- longer sequences require more memory because the graph stores more
+  intermediate states
+- longer sequences create longer gradient paths
+- truncating BPTT lowers compute but limits how far credit assignment can reach
+- exploding gradients may need gradient clipping
+- vanishing gradients make long-range learning weak
 
 ### Long-Term Dependencies / Vanishing Gradients
 
-- this is one of the main problems from the lecture
-- repeated multiplication by small derivatives makes gradients shrink
-- if the signal shrinks too much, the model stops learning long-range structure
+The long-term dependency problem is the main weakness of a plain RNN. If a model
+needs information from many steps earlier, the learning signal has to pass
+through many recurrent updates.
 
-What that leads to:
+During backpropagation, that means repeated multiplication by derivatives. If
+those factors are often less than `1`, the gradient shrinks as it moves
+backward. If they are often greater than `1`, it can explode.
 
-- model learns short-term patterns more easily than long-term ones
-- important early information can get lost
-- plain RNNs struggle with long memory
+What this looks like in practice:
 
-The lecture also points out broader limitations of vanilla RNN-style recurrence:
+- the model learns local syntax before global structure
+- early context can fade out of the hidden state
+- generated text or music may sound locally plausible but drift over longer
+  spans
+- training may be unstable unless gradients are clipped or the architecture is
+  changed
 
-- encoding bottleneck
-- no real parallelization across time
-- weak long-memory behavior
+This connects directly to Lab 1. A character-level music model can learn common
+local transitions before it learns complete ABC structure. A generated sample
+may produce reasonable note-like characters but fail to close sections or keep a
+consistent key.
+
+### LSTM Intuition
+
+The LSTM is the lecture's answer to the plain RNN memory problem. It adds a cell
+state with gates that control what gets written, erased, and exposed.
+
+The pieces I need to remember:
+
+- forget gate: decides what old cell-state information to keep
+- input gate: decides what new candidate information to write
+- output gate: decides what part of the cell state becomes hidden output
+- cell state: a longer-running memory path than the normal hidden state
+
+The exact equations are less important than the reason for the design. A plain
+RNN updates its hidden state in one shot. An LSTM gives the model separate
+controls for remembering and forgetting, which makes it easier to preserve
+useful information across longer spans.
+
+For the Lab 1 LSTM:
+
+- the embedding layer converts character IDs into vectors
+- the LSTM updates hidden and cell states over the character sequence
+- the final linear layer turns each time step into vocabulary logits
+- cross entropy trains each position to predict the next character
 
 ### Sequence Tasks to Keep Straight
 
-- next-token / next-word prediction:
-  given previous context, predict what comes next
-- sequence classification:
-  map a whole sequence to one label, like sentiment
-- generation:
-  repeatedly feed predictions forward to create new sequence content
+Next-token prediction:
 
-### Where the Lecture Is Going
+- input: prefix so far
+- output: probability distribution over the next token
+- Lab 1 example: previous ABC characters -> next ABC character
 
-- later parts of the lecture push beyond plain recurrence
-- attention is introduced as a way to get long-range access without relying only on recurrent state
-- the desired capabilities are basically:
-  continuous stream, parallelization, and long memory
+Sequence classification:
 
-That is a useful progression to remember:
+- input: full sequence
+- output: one label
+- example: sentence -> sentiment
 
-- feed-forward networks for fixed inputs
-- RNNs for ordered sequences
-- attention / transformer ideas for better long-range modeling and parallelism
+Sequence-to-sequence prediction:
+
+- input: one sequence
+- output: another sequence
+- example: source sentence -> translated sentence
+
+Autoregressive generation:
+
+- train with real previous tokens
+- generate by sampling one token, appending it, and repeating
+- output quality depends on the model and on sampling settings such as
+  temperature
+
+### Attention And Transformers
+
+Attention addresses two RNN limitations:
+
+- the hidden-state bottleneck
+- the lack of parallelism across time
+
+In an attention layer, a token can compare itself with other tokens and decide
+which ones are relevant. The rough idea is:
+
+- query: what this position is looking for
+- key: what each position offers for matching
+- value: the information each position can pass along
+- attention weights: how much each position should contribute
+
+Self-attention means every token attends to tokens in the same sequence. This
+lets the model build direct pairwise connections instead of forcing all context
+through a single recurrent hidden state.
+
+The tradeoff is different from an RNN:
+
+- RNN compute grows step by step and has a natural streaming structure
+- self-attention can process a sequence more parallelly
+- full self-attention has a cost that grows with pairwise token interactions
+- transformers need positional information because attention alone does not know
+  token order
 
 ## Lecture 3: Deep Computer Vision
 
@@ -380,7 +489,7 @@ labeling pixels; it may need to predict motion, risk, or a future action.
 
 Images are numerical arrays.
 
-- grayscale image: one value per pixel, so shape is basically `(height, width)`
+- grayscale image: one value per pixel, so shape is `(height, width)`
 - RGB image: three values per pixel, so shape is `(height, width, channels)`
 - PyTorch convention for batches: `(batch, channels, height, width)`
 - MNIST example: `(batch, 1, 28, 28)` because every digit is a 28x28 grayscale image
@@ -2607,7 +2716,7 @@ across many downstream uses.
 
 ### My Finished Lecture 6 Takeaway
 
-Lecture 6 is basically a realism check.
+Lecture 6 is a realism check.
 
 Deep learning works because neural networks are extremely flexible function
 approximators, and scaling that flexibility with data and compute has created
@@ -3024,6 +3133,13 @@ The pipeline is:
 5. Sample fixed-length windows.
 6. Use the same windows shifted one character right as targets.
 
+The local helper functions match those steps:
+
+- `load_training_songs()` reads the ABC file and extracts song blocks.
+- `build_vocabulary()` finds every distinct character and builds `char2idx`.
+- `vectorize_string()` turns the training text into integer IDs.
+- `get_batch()` samples random windows for minibatch training.
+
 For a sequence like:
 
 `A B C D`
@@ -3034,6 +3150,20 @@ the model sees:
 - target: `B C D`
 
 That one-character shift is the entire next-token prediction objective.
+
+For the actual tensor shapes in the local script:
+
+- `x_batch`: `(batch_size, seq_length)`
+- `y_batch`: `(batch_size, seq_length)`
+- model logits: `(batch_size, seq_length, vocab_size)`
+
+The loss flattens the first two dimensions before calling cross entropy:
+
+- logits become `(batch_size * seq_length, vocab_size)`
+- labels become `(batch_size * seq_length)`
+
+That reshape is not just cleanup. It is what turns "one prediction per time
+step" into the format PyTorch's classification loss expects.
 
 ### LSTM Model And Generation
 
@@ -3064,6 +3194,31 @@ Temperature controls randomness:
 
 The local script can save generated text and ABC snippets. Rendering to WAV is
 optional because it depends on external tools: `abc2midi` and `timidity`.
+
+Generation is also where train-time and inference-time behavior diverge:
+
+- during training, the model sees real previous characters from the dataset
+- during generation, it sees its own sampled characters
+- an early bad sample can push the sequence into unfamiliar territory
+- longer generation makes these errors accumulate
+
+That explains why a short sample can look cleaner than a long one even with the
+same model checkpoint.
+
+### What I Would Check In A Real Run
+
+When I train the music model for more than a smoke test, I should not judge it
+only by loss. I need to inspect generated artifacts:
+
+- does the text contain complete song snippets starting with `X:`?
+- are metadata fields such as `T:`, `M:`, and `K:` present?
+- does the generated body use mostly valid ABC note symbols?
+- does extraction find at least one complete song block?
+- can `abc2midi` parse the first generated snippet?
+- does the audio sound like a tune rather than random note noise?
+
+Those checks matter because cross entropy can improve before the generated music
+is structurally valid.
 
 ### Lab 1 Takeaway
 

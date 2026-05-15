@@ -21,7 +21,7 @@ Source check: I looked up the active 2026 MIT 6.S191 course page on May 15,
 | Course item | Official date | My local status |
 | --- | --- | --- |
 | Lecture 1: Intro to Deep Learning | Mar. 30, 2026 | Foundations notes rewritten |
-| Lecture 2: Deep Sequence Modeling | Apr. 6, 2026 | Complete notes, needs another careful pass |
+| Lecture 2: Deep Sequence Modeling | Apr. 6, 2026 | Sequence-modeling notes rewritten |
 | Software Lab 1: Deep Learning in Python + Music Generation | After Lecture 2 | Complete local PyTorch mechanics pass |
 | Lecture 3: Deep Computer Vision | Apr. 13, 2026 | Complete notes plus Lab 2 bridge |
 | Lecture 4: Deep Generative Modeling | Apr. 20, 2026 | Complete notes plus DB-VAE bridge |
@@ -50,7 +50,7 @@ I plan to keep updating this as I finish each official lab, re-implement section
 | Lecture | Status |
 | --- | --- |
 | [x] Lecture 1: Intro to Deep Learning | Foundations notes rewritten |
-| [x] Lecture 2: Deep Sequence Modeling | Complete notes, refinement next |
+| [x] Lecture 2: Deep Sequence Modeling | Sequence-modeling notes rewritten |
 | [x] Lecture 3: Deep Computer Vision | Complete notes plus Lab 2 bridge |
 | [x] Lecture 4: Deep Generative Modeling | Complete notes plus DB-VAE bridge |
 | [x] Lecture 5: Deep Reinforcement Learning | Complete notes through DQN, policy gradients, actor-critic, simulation, and AlphaGo/AlphaZero |

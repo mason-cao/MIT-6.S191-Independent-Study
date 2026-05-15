@@ -42,6 +42,38 @@ The main ideas I need to retain are:
 - LSTM generation repeats inference one character at a time, feeding sampled
   output back into the model
 
+## Music Generation Notes
+
+The music-generation half is a character-level language model. The data is ABC
+notation, so the model is not predicting audio waveforms directly. It predicts
+the next text character in a compact symbolic music format.
+
+The training example structure is:
+
+```text
+input:  X : 1 \n T
+target: : 1 \n T :
+```
+
+That means every target is the same window shifted one character to the right.
+In tensor form, the local scripts use:
+
+- `x_batch`: `(batch_size, seq_length)`
+- `y_batch`: `(batch_size, seq_length)`
+- logits: `(batch_size, seq_length, vocab_size)`
+
+The model stack is:
+
+1. `nn.Embedding` for character IDs.
+2. `nn.LSTM` for sequence state.
+3. `nn.Linear` for vocabulary logits.
+4. Cross entropy over all time steps.
+
+Generation is not the same as training. During training, the model always sees
+real previous characters from the dataset. During generation, each sampled
+character becomes the next input, so mistakes can compound. I should inspect
+the generated ABC text directly before treating a lower loss as a better song.
+
 ## Scripts
 
 - `01_tensor_mechanics.py`: tensor rank, shape, slicing, image-batch layout, and
