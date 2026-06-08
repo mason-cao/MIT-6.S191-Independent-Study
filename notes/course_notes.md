@@ -3437,9 +3437,10 @@ lighting conditions, poses, or camera qualities.
 
 ## Lecture 7: The Three Laws Of AI
 
-Status: started full-material pass on June 8, 2026. This first pass covers the
-lecture framing, the Asimov-to-AI move, and why literal rule checking is not
-enough for modern deep learning systems.
+Status: full-material pass complete as of June 8, 2026. These notes cover the
+lecture framing, the Asimov-to-AI move, why literal rule checking is not enough,
+observability, evaluations, long-context safety drift, agents, and the final
+modern laws.
 
 Lecture 7 is a safety and evaluation lecture. The earlier lectures mostly asked
 how to train models: choose an architecture, choose a loss, compute gradients,
@@ -3739,7 +3740,7 @@ know the prompt template, decoded input, sampled tokens, temperature, model
 weights, adapter setting, and evaluation score. Without that, the output is hard
 to reproduce.
 
-Working takeaway from this part: an LLM application needs the same discipline I
+My takeaway from this part: an LLM application needs the same discipline I
 would expect from a normal ML experiment, but applied to prompts, tool calls,
 memory, traces, and qualitative outputs. Playground testing is useful for
 exploration. It is not enough evidence for trust.
@@ -3916,11 +3917,168 @@ hoping the model behaves. I should start with narrow permissions, trace
 everything, create an evaluation dataset, and add privileges only when I can
 test the new failure modes.
 
-Working takeaway: Lecture 7 is not arguing that safety can be solved by
-writing three perfect laws. It is arguing the opposite. Since modern AI systems
-are learned, contextual, and hard to inspect directly, safety has to be turned
-into an engineering process: clear constraints, repeatable evaluations, logged
-behavior, and willingness to not deploy when the evidence is weak.
+### The Modern Laws As Governance Principles
+
+Near the end, the lecture gives a modern version of AI laws that draws from
+regulatory and standards work: the EU AI Act, NIST AI Risk Management Framework,
+OECD AI Principles, IEEE ethics work, human-in-the-loop standards, and related
+AI governance documents.
+
+The first version is broad:
+
+1. AI systems must be transparent enough for people to understand and contest
+   outcomes.
+2. AI systems must be safe, secure, and robust.
+3. AI systems must be aligned with human direction through transparent,
+   accountable oversight.
+4. AI systems must respect human rights, fairness, and societal values.
+
+This is the right level for policy, but it is not yet enough for engineering.
+"Be fair" and "be robust" are necessary goals, but a developer still has to turn
+them into tests, logs, release gates, and system behavior.
+
+How I would translate those broad laws:
+
+- transparency means users can understand the role of the model, challenge
+  important outputs, and see when automation is involved
+- safety and security mean the model is tested for misuse, protected from
+  prompt injection and unsafe tool use, and monitored after release
+- alignment with human direction means human instructions matter, but only
+  inside safe and accountable boundaries
+- human rights and fairness mean subgroup behavior, access, dignity, and
+  downstream effects are part of evaluation
+
+The important phrase is "contest outcomes." A system is not transparent just
+because it prints a confidence score or says it used AI. Contestability means a
+person has a path to question, appeal, correct, or escalate an outcome. That is
+especially important for decisions about school, work, finance, healthcare,
+housing, law, or public services.
+
+This connects back to Lab 2. A face detector with strong average accuracy is
+not enough if a subgroup experiences much higher false negatives. A transparent
+system should make those differences measurable, and a contestable system
+should not leave users trapped by an automated decision.
+
+### The Modern Laws As Engineering Practice
+
+The final version of the laws is more operational:
+
+1. Log traces, use online evaluation, and inspect failures.
+2. Build a dataset of tests and keep adding to it.
+3. Evaluate prompts on the dataset and model often.
+4. Be transparent, for example by publishing datasets and evaluation results.
+
+Then the lecture adds two stronger constraints:
+
+- if safety and security cannot be guaranteed, do not deploy
+- AI systems may not harm humanity, or through inaction allow humanity to come
+  to harm
+
+The difference between version 1 and version 2 is useful. Version 1 says what
+values the system should satisfy. Version 2 says what process should exist so I
+can gather evidence. The process is what makes the values concrete.
+
+The operational loop:
+
+```text
+collect traces
+inspect failures
+turn failures into dataset items
+run evaluations across prompt/model versions
+compare results
+publish or document what was tested
+hold deployment if the risk is not controlled
+```
+
+That loop is basically safety-oriented MLOps for LLMs and agents. It treats
+prompt changes like code changes. It treats model upgrades like dependency
+upgrades. It treats failures as regression tests. It treats transparency as
+part of the release artifact, not a sentence in a slide deck.
+
+The line about not deploying is easy to say and hard to follow. It means the
+system should have release gates. A release gate is a condition that must be met
+before deployment:
+
+- critical safety dataset passes
+- no known high-severity failures remain unhandled
+- high-risk tools require confirmation
+- long-context safety tests pass
+- privacy and security checks pass
+- trace logging works in production
+- escalation and rollback paths exist
+
+For a small student project, this can be lightweight. For example, before
+publishing an agent demo, I could require:
+
+- all local tests pass
+- a small unsafe-request dataset produces safe refusals
+- the agent cannot write outside an allowed directory
+- irreversible actions require confirmation
+- every run produces a trace
+- known failure examples are documented
+
+The scale changes, but the habit is the same.
+
+### Safety, Security, And Robustness Are Different
+
+The phrase "safe, secure, and robust" contains three separate requirements:
+
+- safety: the system avoids harmful behavior
+- security: the system resists misuse, attacks, and unauthorized access
+- robustness: the system behaves acceptably under distribution shift, noise,
+  ambiguity, and unexpected inputs
+
+It is possible to satisfy one and fail another. A model could refuse dangerous
+medical advice but leak private data. That would be a security failure. A model
+could pass a standard benchmark but fail when the user misspells key terms. That
+would be a robustness failure. A model could answer accurately but take an
+unsafe action through a tool. That would be a safety failure.
+
+For LLM agents, security becomes especially concrete:
+
+- prompt injection can try to override system instructions
+- retrieved documents can contain malicious instructions
+- tools can expose private data
+- memory can preserve information that should expire
+- an agent can chain low-risk actions into a high-risk outcome
+
+That means agent safety should not depend on the model ignoring every malicious
+instruction. The surrounding system should restrict tools, validate inputs,
+separate trusted and untrusted context, and keep logs that make attacks visible.
+
+### My Final Lecture 7 Takeaway
+
+Lecture 7 makes the strongest argument so far that model quality and system
+trustworthiness are not the same thing. A model can be capable, fluent, and
+useful while still being unsafe in long contexts, vulnerable to bad tool use, or
+too opaque for high-stakes deployment.
+
+The lesson I want to carry forward:
+
+1. Safety has to be evaluated, not assumed.
+2. One-turn tests are not enough for long-context systems.
+3. Agents need action-level controls, not only answer-level guardrails.
+4. Traces turn failures into inspectable evidence.
+5. Datasets should grow from real failures.
+6. Prompt and model changes need repeated evaluation.
+7. If the risk cannot be bounded, the system should not be deployed.
+
+This is a useful ending to the core AI-safety arc of the course because it
+connects almost every previous lecture:
+
+- Lecture 1: optimization can improve a loss without guaranteeing safe behavior
+- Lecture 2: sequence context creates multi-turn failure modes
+- Lecture 3: average accuracy can hide subgroup errors
+- Lecture 4: generative models can create plausible but wrong outputs
+- Lecture 5: agents can optimize local goals in unsafe ways
+- Lecture 6: frontier models amplify uncertainty, bias, scale, and deployment
+  risk
+- Lab 3: fine-tuned LLMs need repeatable evaluation and traceable outputs
+
+My strongest practical rule after this lecture: do not build LLM or agent
+systems where the only evidence is that a few examples looked good. Build the
+tests, keep the traces, inspect the failures, and make deployment depend on the
+evidence.
 
 ## Lecture 8: AI For Science
 
