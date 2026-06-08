@@ -2,9 +2,10 @@
 
 ## Study Source And Plan
 
-This repository is my independent-study notebook for MIT 6.S191. I checked the
-active 2026 course page at `https://introtodeeplearning.com/` on May 15, 2026
-and am using that schedule for these notes.
+This repository is my independent-study notebook for MIT 6.S191. I rechecked
+the active 2026 course page at `https://introtodeeplearning.com/` on June 8,
+2026 and am using that schedule for these notes. The public materials still use
+the 6.S191 label.
 
 The official public sequence I am following is:
 
@@ -17,12 +18,10 @@ The official public sequence I am following is:
 - Lecture 5: Deep Reinforcement Learning, Apr. 27, 2026
 - Lecture 6: New Frontiers, May 4, 2026
 - Software Lab 3: Fine-Tune an LLM, You Must!
-- Lecture 7: AI for Science, May 11, 2026, with public abstract available and
-  slides/video still pending as of May 15, 2026
-- Lecture 8: Secrets to Massively Parallel Training, May 18, 2026, future-dated
-  as of May 15, 2026 but with public abstract available
-- Lecture 9: The Three Laws of AI, May 25, 2026, future-dated as of May 15,
-  2026 but with public abstract available
+- Lecture 7: The Three Laws of AI, May 11, 2026
+- Lecture 8: AI for Science, May 18, 2026
+- Final project work
+- Lecture 9: Secrets to Massively Parallel Training, May 25, 2026
 
 My standard for these notes: each section should teach the subject well enough
 that I could rebuild the code or explain the concept without reopening the
@@ -3436,134 +3435,165 @@ The second problem is harder. A dataset can have many face examples and still be
 biased if those examples are concentrated around a narrow set of appearances,
 lighting conditions, poses, or camera qualities.
 
-## Lecture 7: AI For Science
+## Lecture 7: The Three Laws Of AI
 
-The public course page lists Lecture 7 as "AI for Science" by Chris Bishop from
-Microsoft Research AI for Science. During this May 15 pass, the abstract is
-available but the full slides and video are still marked as pending on the
-schedule.
+Status: started full-material pass on June 8, 2026. This first pass covers the
+lecture framing, the Asimov-to-AI move, and why literal rule checking is not
+enough for modern deep learning systems.
 
-The framing is different from the earlier lectures. Instead of treating deep
-learning as only a prediction or generation tool, the lecture positions AI
-inside the scientific discovery loop:
+Lecture 7 is a safety and evaluation lecture. The earlier lectures mostly asked
+how to train models: choose an architecture, choose a loss, compute gradients,
+and evaluate held-out behavior. This lecture asks a different question:
 
-1. Form a hypothesis.
-2. Build or choose a model.
-3. Generate predictions or candidates.
-4. Test against physical reality.
-5. Refine the hypothesis and repeat.
+`What would make an AI system trustworthy enough to use when its output can
+affect real people?`
 
-The important phrase for me is "tested against the physical world." Scientific
-AI is not finished when the model produces a plausible output. A weather model,
-material candidate, or drug molecule still has to survive validation outside the
-training objective.
+The key word is "system." A deployed model is not only a function
+`f(x; theta)`. It is surrounded by prompts, memory, tools, logs, user interfaces,
+guardrails, evaluation datasets, escalation rules, and people who decide what
+to do when something fails. The model can be strong and the total system can
+still be unsafe.
 
-The public abstract names three example areas:
+The lecture uses Asimov's robot laws as a starting point. The original idea was
+fictional, but it is useful because it makes the desired safety hierarchy easy
+to see:
 
-- atmospheric modeling
-- materials design
-- drug discovery
+- do not harm people
+- follow human direction only when that does not cause harm
+- preserve the machine only when that does not conflict with the higher rules
 
-That connects back to the course in a useful way:
+A later version adds humanity-level harm above individual harm. That addition is
+important for AI because many deployed systems have population-scale effects.
+Recommendation systems, fraud detection models, hiring tools, medical triage
+systems, and autonomous agents can cause harm without a single dramatic robot
+action. A system can shift incentives, exclude groups, amplify misinformation,
+or produce dangerous advice at scale.
 
-- sequence models can represent biological strings or time-series data
-- generative models can propose candidate structures or molecules
-- uncertainty matters because experiments are expensive
-- distribution shift matters because scientific settings often involve rare or
-  extreme cases
-- evaluation has to include external validation, not only held-out loss
+### Why Literal Safety Rules Fail
 
-My takeaway: AI for science is not "let the model replace the scientist." It is
-closer to using models to search, simulate, prioritize, and accelerate parts of
-the discovery pipeline while keeping experiment and domain knowledge in the
-loop.
+The tempting engineering version of Asimov is:
 
-## Lecture 8: Secrets To Massively Parallel Training
+```text
+if action_is_safe(action):
+    execute(action)
+```
 
-Lecture 8 is listed for May 18, 2026, so it is future-dated as of May 15. The
-public course page already shows the talk description. It is about scaling deep
-neural network training to thousands of GPUs.
+That looks clean, but it hides the hardest problem inside `action_is_safe`.
+Modern AI systems do not operate in a small world where every action and
+consequence can be enumerated. The system has to interpret language, infer
+context, deal with ambiguity, and predict downstream effects. Those are exactly
+the parts that are uncertain.
 
-This lecture answers a systems question that the earlier model lectures mostly
-hide: what does it take to train the large models that make modern scaling laws
-possible?
+For symbolic AI, a rule can sometimes be checked because the world is represented
+as tokens and logic. For deep learning, the representation is usually
+distributed across many real-valued activations. The model does not carry a
+single explicit variable called `harm`. It has patterns learned from data,
+weights shaped by optimization, and behavior that depends on context.
 
-The public abstract points to several topics:
+This connects to the lecture's contrast between two styles of AI:
 
-- GPUs versus CPUs for training throughput
-- scaling laws and why larger models/datasets can improve performance
-- memory requirements during training
-- activation checkpointing
-- offloading
-- data parallelism
-- tensor parallelism
-- pipeline parallelism
-- sequence or context parallelism
-- DeepSpeed ZeRO and FSDP-style sharding
-- Mixture of Experts and expert parallelism
-- network bandwidth as a bottleneck
-- an LFM2 case study
+- formal systems: tokens, rules, discrete states, centralized control, explicit
+  syntax
+- learned systems: patterns, generalization, real-valued representations,
+  distributed computation, graceful degradation, blurred syntax and semantics
 
-The conceptual link to the rest of the course:
+The strength of deep learning is also part of the safety difficulty. A neural
+network can generalize beyond handwritten rules, but the same generalization
+means I cannot prove its behavior by reading one rules file. Safety has to move
+from "the rule exists" to "the system is repeatedly tested, monitored, and
+bounded."
 
-- Lecture 1 explains one training step.
-- Lecture 2-6 explain larger architectures and objectives.
-- Lecture 8 asks how that training step is distributed when the model, data, and
-  optimizer state no longer fit comfortably on one device.
+### AI History Through This Lens
 
-The main systems distinction I need:
+The history matters because it explains why this lecture appears near the end
+of 6.S191 instead of at the beginning. The course first builds up the deep
+learning machinery. Only after sequence models, vision, generative modeling,
+reinforcement learning, and frontier models does the safety question become
+fully concrete.
 
-- data parallelism: copy the model across devices and split examples
-- tensor parallelism: split large tensor operations across devices
-- pipeline parallelism: split layers or blocks across devices
-- sequence/context parallelism: split long-sequence work across devices
-- sharding: split parameters, gradients, or optimizer state to reduce memory per
-  device
+The rough arc:
 
-This also changes how I think about "model size." Parameter count is not the
-only cost. Training also needs activations, gradients, optimizer state,
-communication, checkpointing, and fault tolerance. The compute graph becomes a
-distributed systems problem.
+1. Early AI imagined intelligence as explicit symbolic reasoning.
+2. Classical symbolic approaches struggled with messy perception, language, and
+   real-world ambiguity.
+3. Deep learning became practical when data grew, GPUs became useful for neural
+   networks, networks became deeper, automatic differentiation made training
+   easier, and industry invested heavily.
+4. After 2017, transformer-style systems and large-scale training made language
+   models central to many deployed AI products.
 
-## Lecture 9: The Three Laws Of AI
+My interpretation: the field moved from writing rules for intelligence to
+training systems that infer patterns. That made AI much more capable, but it
+also moved failure modes away from obvious syntax errors. A harmful output can
+look fluent. A biased classifier can have good average accuracy. An agent can
+complete a local task while violating a broader constraint. That is why
+evaluation becomes a first-class part of safety.
 
-Lecture 9 is listed for May 25, 2026, so it is also future-dated as of May 15.
-The public course page lists Douglas Blank from Comet ML and describes a
-safety-focused lecture based on a modern version of Asimov-style AI laws.
+### What This Changes From Earlier Lectures
 
-The important connection is to Lecture 6. Once AI systems become autonomous,
-interactive, or deployed in high-stakes settings, the problem is not only model
-accuracy. It is the safety layer around the model:
+In Lecture 1, the core loop was:
 
-- what actions the system is allowed to take
-- how it handles uncertainty
-- when it asks for help
-- how behavior is monitored
-- how failures are logged and corrected
-- what constraints prevent harm
+1. forward pass
+2. loss
+3. backward pass
+4. optimizer step
 
-The public abstract says the lecture includes interactive demonstrations that
-challenge current deep learning safety protocols. That is a useful ending point
-for the course because it turns model limitations into system requirements.
+In Lecture 7, the deployment loop is closer to:
 
-My working version of the lesson:
+1. define the behavior I want
+2. build a dataset of situations that test that behavior
+3. run the model or agent on those situations
+4. log the inputs, outputs, tool calls, and intermediate steps
+5. score the behavior with metrics or human review
+6. inspect failures
+7. add new tests for those failures
+8. change the prompt, model, tool policy, or system boundary
+9. repeat before and after deployment
 
-- a model can optimize the given objective and still behave badly
-- safety cannot depend only on good average-case benchmark performance
-- monitoring and feedback are part of deployment, not optional extras
-- ethical constraints need to be operationalized as tests, policies, and system
-  boundaries
+This is a different kind of rigor. Training loss tells me whether an optimizer
+reduced a numerical objective. Safety evaluation asks whether the system behaves
+acceptably under cases I care about. The hard part is that the test set is never
+complete. A good evaluation process therefore has to keep growing as new failure
+modes are discovered.
 
-This loops back to several earlier notes:
+This also makes the connection to my Lab 3 notes sharper. Fine-tuning an LLM is
+not finished when a sample sounds closer to the target style. I need controls,
+held-out prompts, repeatable scoring, and failure examples. For any system with
+real users, I would also need trace logging and regression tests so a prompt or
+model update does not quietly reintroduce old failures.
 
-- Lab 2: subgroup failure can hide behind average accuracy
-- Lecture 5: bad reward design can produce unwanted behavior
-- Lecture 6: models can be overconfident under distribution shift
-- Lab 3: live LLM systems need tracing and repeatable evaluation
+Working takeaway: Lecture 7 is not arguing that safety can be solved by
+writing three perfect laws. It is arguing the opposite. Since modern AI systems
+are learned, contextual, and hard to inspect directly, safety has to be turned
+into an engineering process: clear constraints, repeatable evaluations, logged
+behavior, and willingness to not deploy when the evidence is weak.
 
-## Final Course Synthesis
+## Lecture 8: AI For Science
 
-The course now reads to me as one connected arc:
+Status: full materials are now open. I have not started the full Lecture 8 pass
+yet.
+
+The earlier abstract-level notes for AI for Science were based on the public
+course description. The full pass should rebuild this section from the slides
+and video, especially the scientific discovery loop, simulator/emulator split,
+inductive bias in scientific models, molecular and materials examples, and the
+limits of current simulation.
+
+## Lecture 9: Secrets To Massively Parallel Training
+
+Status: full materials are now open. I have not started the full Lecture 9 pass
+yet.
+
+The earlier abstract-level notes for massively parallel training were based on
+the public course description. The full pass should rebuild this section from
+the slides and video, especially scaling laws, memory accounting, activation
+checkpointing, offloading, data/tensor/pipeline/context parallelism, sharding,
+expert parallelism, and the LFM2 case study.
+
+## Draft Course Synthesis
+
+The course is starting to read to me as one connected arc. This synthesis still
+needs a final pass after I finish Lectures 7, 8, and 9 from the full materials.
 
 1. Neural networks are differentiable function approximators trained by loss
    minimization.
@@ -3573,10 +3603,10 @@ The course now reads to me as one connected arc:
 5. RL changes the setup from prediction to action under delayed reward.
 6. Frontier models scale these ideas but also amplify robustness, bias,
    uncertainty, and deployment problems.
-7. Scientific and large-scale training lectures show that real impact depends on
-   external validation and systems engineering.
-8. The safety lecture closes the loop: a model is only one component inside a
-   larger decision system.
+7. The safety lecture shifts the unit of analysis from model to deployed
+   system: logs, tests, tools, memory, guardrails, and escalation paths matter.
+8. The science and large-scale training lectures should extend this into
+   external validation and systems engineering once I finish the full pass.
 
 The biggest technical habits I built:
 

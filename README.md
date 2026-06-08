@@ -15,8 +15,9 @@ I'm building this project because I want to move past surface-level ML tutorials
 
 ## Official Course Snapshot
 
-Source check: I looked up the active 2026 MIT 6.S191 course page on May 15,
-2026. This is the schedule I am using for the study log:
+Source check: I rechecked the active 2026 MIT 6.S191 course page on June 8,
+2026. The public materials still use the 6.S191 course label. This is the
+schedule I am using for the study log:
 
 | Course item | Official date | My local status |
 | --- | --- | --- |
@@ -29,9 +30,9 @@ Source check: I looked up the active 2026 MIT 6.S191 course page on May 15,
 | Lecture 5: Deep Reinforcement Learning | Apr. 27, 2026 | RL notes rewritten through DQN, policy gradients, and actor-critic |
 | Lecture 6: New Frontiers | May 4, 2026 | Frontier-model notes rewritten |
 | Software Lab 3: Fine-Tune an LLM, You Must! | After Lecture 6 | Local LLM fine-tuning mechanics pass complete |
-| Lecture 7: AI for Science | May 11, 2026 | Public abstract notes added; slides/video still pending |
-| Lecture 8: Secrets to Massively Parallel Training | May 18, 2026 | Future-dated; public abstract notes added |
-| Lecture 9: The Three Laws of AI | May 25, 2026 | Future-dated; public abstract notes added |
+| Lecture 7: The Three Laws of AI | May 11, 2026 | Full-material notes started: safety framing and Asimov-to-AI history |
+| Lecture 8: AI for Science | May 18, 2026 | Full materials open; next lecture to start |
+| Lecture 9: Secrets to Massively Parallel Training | May 25, 2026 | Full materials open; notes pending |
 
 ## Lab Progress
 
@@ -55,9 +56,9 @@ I plan to keep updating this as I finish each official lab, re-implement section
 | [x] Lecture 4: Deep Generative Modeling | Generative modeling and DB-VAE notes rewritten |
 | [x] Lecture 5: Deep Reinforcement Learning | RL notes rewritten through DQN, policy gradients, actor-critic, simulation, and AlphaGo/AlphaZero |
 | [x] Lecture 6: Language Models and New Frontiers | Frontier notes rewritten across limitations, diffusion, protein generation, LLMs, scaling, and foundation models |
-| [x] Lecture 7: AI for Science | Abstract-level notes added; waiting for full public materials |
-| [ ] Lecture 8: Secrets to Massively Parallel Training | Future official lecture date; abstract-level notes added |
-| [ ] Lecture 9: The Three Laws of AI | Future official lecture date; abstract-level notes added |
+| [ ] Lecture 7: The Three Laws of AI | In progress: safety framing and Asimov-to-AI history notes added |
+| [ ] Lecture 8: AI for Science | Full materials open; next lecture to start |
+| [ ] Lecture 9: Secrets to Massively Parallel Training | Full materials open; notes pending |
 
 ## Hardware / Setup
 
