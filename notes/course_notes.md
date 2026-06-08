@@ -3562,6 +3562,188 @@ held-out prompts, repeatable scoring, and failure examples. For any system with
 real users, I would also need trace logging and regression tests so a prompt or
 model update does not quietly reintroduce old failures.
 
+### Observability: Making The System Inspectable
+
+The lecture's practical tool example is Opik, which is presented as an
+LLM-observability and evaluation platform. I do not need to treat the specific
+platform as the only possible answer, but the concepts are important because
+they define what has to be recorded in any serious LLM application.
+
+The problem is that an LLM workflow is not usually one model call anymore. A
+single user request can involve:
+
+1. reading the current message
+2. injecting system instructions
+3. retrieving context from files, memory, or a vector database
+4. choosing tools
+5. calling those tools
+6. summarizing tool outputs
+7. making another model call
+8. producing the final response
+
+If I only save the final answer, I lose the evidence needed to debug the
+system. A bad final answer could come from the user prompt, the system prompt,
+retrieval, tool selection, a tool error, an overly permissive memory, a model
+failure, or a bad evaluator. Observability means recording enough of the
+pipeline that I can locate which part failed.
+
+The lecture vocabulary:
+
+- message: one piece of text from the user or model
+- chat prompt: the conversation history and instructions sent to the model
+- trace: the complete record of one LLM workflow
+- span: one unit of work inside a trace
+- project: a container that organizes related traces and spans
+
+The trace/span distinction is especially useful. A trace is the full run. A span
+is a step inside the run. For a tool-using agent, a trace might cover the whole
+question-answer interaction, while spans cover retrieval, model calls, parsing,
+tool calls, scoring, and final formatting.
+
+The shape is similar to a computation graph, but for an application workflow
+instead of tensor operations:
+
+```text
+trace: answer one user request
+    span: build prompt
+    span: retrieve course notes
+    span: call model
+    span: call tool
+    span: call model again
+    span: run evaluator
+```
+
+What I would want to log for each span:
+
+- input text or structured input
+- output text or structured output
+- model name or tool name
+- prompt/template version
+- latency
+- token counts or cost if relevant
+- errors and retries
+- metadata such as dataset item, experiment name, and safety category
+
+This is not only for debugging crashes. It is for debugging behavior. If a model
+starts failing on long conversations, or a new prompt improves style but weakens
+safety, I need traces from before and after the change. Otherwise I am judging
+from memory and a few hand-picked examples.
+
+### Evaluations: Turning Informal Testing Into Experiments
+
+The lecture asks how we know whether an LLM is performing well, then gives the
+answer: turn informal playground testing into a scientific process. That means
+building datasets, choosing metrics, running experiments, and comparing results
+across model or prompt versions.
+
+The evaluation vocabulary:
+
+- evaluation: applying a metric to an LLM result
+- dataset: a collection of user queries or test cases
+- metric: a measurement of correctness or quality
+- experiment: running dataset items through a system and scoring them with one
+  or more metrics
+
+This maps cleanly onto the ML habits from earlier lectures:
+
+- training set becomes evaluation dataset
+- loss/accuracy becomes LLM-specific metrics
+- model checkpoint becomes prompt/model/tooling version
+- validation run becomes experiment
+- error analysis becomes trace inspection
+
+But LLM evaluation is messier than MNIST accuracy. A digit classifier has a
+label like `7`. Many LLM tasks have partially correct answers, style
+requirements, safety boundaries, and ambiguous user intent. That is why the
+lecture mentions built-in metrics and LLM-as-a-judge evaluation.
+
+Useful metric types:
+
+- exact match for tasks with one correct string
+- contains/does-not-contain checks for required or forbidden content
+- regex or parser checks for structured outputs
+- unit tests for code-generation tasks
+- retrieval checks for whether the answer used the right source
+- refusal/safety checks for high-risk requests
+- LLM-as-a-judge scores for qualities that are hard to encode as rules
+
+LLM-as-a-judge is useful, but it is not magic. A judge model can be biased,
+inconsistent, overconfident, or fooled by fluent wrong answers. I should treat
+it as another measurement instrument, not as ground truth. For important
+evaluations, I would want calibration examples:
+
+- clearly good answers
+- clearly bad answers
+- borderline answers
+- adversarial answers that sound polished but violate the rubric
+- human spot checks on judge disagreements
+
+An experiment should make comparison possible. The minimum version I would want
+to track:
+
+```text
+experiment name: lecture7_safety_prompt_v2
+dataset: high_risk_and_normal_user_requests
+system version: prompt v2 + model A
+metrics: refusal quality, helpfulness, policy compliance, source use
+outputs: scores plus trace links for every item
+```
+
+Then I can ask real questions:
+
+- Did the new prompt improve safety without making normal answers useless?
+- Did a model upgrade change refusal behavior?
+- Are failures concentrated in long-context cases?
+- Are tool calls helping or creating new mistakes?
+- Which dataset items should become regression tests?
+
+The most important habit is to keep failed cases. If I only report aggregate
+scores, I lose the examples that teach me what to fix. If an LLM gives harmful
+advice after a long conversation, that failure should become a test case with
+the full conversational context preserved.
+
+### Connection To My Lab 3 Evaluation
+
+My local Lab 3 scripts already have a small version of this idea:
+
+- base-style controls
+- target-style controls
+- generated samples
+- held-out style loss
+- a simple local rubric
+
+Lecture 7 shows what that should become in a real LLM system. Instead of only
+printing a few examples, I would store the prompts, outputs, scores, and run
+metadata. Instead of judging by vibe, I would create a dataset with specific
+cases and rerun it whenever I changed the prompt, model, adapter, or decoding
+settings.
+
+For the Yoda-style fine-tuning lab, a better evaluation dataset would include:
+
+- ordinary questions where the answer should stay factually correct
+- style-transfer questions where the target style should appear
+- prompts where style should not override safety
+- prompts that tempt the model to overdo the style and become unreadable
+- held-out examples not seen during adapter training
+
+Metrics could include:
+
+- answer-token loss on held-out style examples
+- simple style-marker score
+- readability score or length limits
+- exact factual checks for small controlled facts
+- safety refusal checks for unsafe requests
+
+This is also where tracing would matter. If a generated answer is bad, I want to
+know the prompt template, decoded input, sampled tokens, temperature, model
+weights, adapter setting, and evaluation score. Without that, the output is hard
+to reproduce.
+
+Working takeaway from this part: an LLM application needs the same discipline I
+would expect from a normal ML experiment, but applied to prompts, tool calls,
+memory, traces, and qualitative outputs. Playground testing is useful for
+exploration. It is not enough evidence for trust.
+
 Working takeaway: Lecture 7 is not arguing that safety can be solved by
 writing three perfect laws. It is arguing the opposite. Since modern AI systems
 are learned, contextual, and hard to inspect directly, safety has to be turned
