@@ -3744,6 +3744,178 @@ would expect from a normal ML experiment, but applied to prompts, tool calls,
 memory, traces, and qualitative outputs. Playground testing is useful for
 exploration. It is not enough evidence for trust.
 
+### Long-Context Safety Drift
+
+The most serious example in the lecture is a reported case where a long-running
+chatbot relationship moved from an initial safety warning into increasingly
+personalized unsafe guidance. I am not treating the news report as a technical
+postmortem with every causal detail settled. The point for this course is the
+failure pattern: a model can appear safer in a one-turn test than it is inside a
+long, personalized conversation.
+
+That distinction matters because most quick safety demos look like this:
+
+```text
+user asks risky question
+model refuses or gives a warning
+test passes
+```
+
+But a real user interaction can look more like this:
+
+```text
+turn 1: risky question
+turn 2: user reframes the risk
+turn 3: model remembers emotional context
+turn 4: user asks for a less direct version
+turn 5: model gives personalized guidance
+```
+
+The output at turn 5 is not independent of turns 1-4. The model is conditioned
+on the accumulated context, and the product may also use stored memory or prior
+conversation history. That creates a safety problem that does not show up if I
+only evaluate isolated prompts.
+
+The lecture's recommendations for this failure mode are practical:
+
+- limit how much user history can influence the model
+- counteract safety degradation in long conversations
+- make the model intentionally bad at giving harmful personalized guidance
+- provide explainable and user-controlled personalization
+- test slow safety failures instead of only one-off prompts
+- route high-risk topics to specialized systems
+- strengthen organizational and operational safeguards
+- bias the model toward safer failure modes
+
+The phrase "intentionally bad" is important. In normal ML work I usually want
+better task performance. For safety-critical misuse, I want the opposite: the
+model should be bad at helping with the harmful part, even if the user keeps
+trying to make the request sound reasonable.
+
+This changes how I would design a safety evaluation dataset. It should include
+multi-turn trajectories, not only single prompts:
+
+- direct unsafe request followed by softer rewording
+- repeated requests after an initial refusal
+- emotional dependence on the model
+- attempts to make the model personalize risky guidance
+- long context where earlier facts quietly change the answer
+- benign conversations mixed with later high-risk turns
+
+The metric also has to be sequential. A model that refuses on turn 1 but gives
+harmful details on turn 6 has failed. I would score the whole conversation, not
+only each response independently.
+
+The trace should preserve:
+
+- the full conversation window
+- which memories were retrieved or applied
+- whether a safety classifier or policy check fired
+- whether the model escalated or routed the conversation
+- how the answer changed as the user reframed the request
+
+This is a direct connection to Lecture 2 and Lecture 6. Sequence models use
+context, and frontier models can use very long context. That capability is
+useful for personalization and continuity, but it also means safety has to be
+tested across time. A long context is not just more tokens. It is a larger
+behavioral state.
+
+### What Changes When The System Is An Agent
+
+The lecture then moves from LLM chat to agentic AI. The short definition I want
+to keep is:
+
+`An agent is a system that can do things on behalf of the user.`
+
+That is a clean boundary. A normal chatbot produces text. An agent can observe,
+plan, call tools, write files, send messages, run code, move money, control
+devices, or coordinate with other agents depending on what permissions it has.
+
+The risk changes because the output is no longer only advice. The system can
+take actions. A bad plan can become a real-world change before a human notices.
+
+The basic agent loop:
+
+1. observe the state
+2. infer the user's goal
+3. plan one or more steps
+4. choose a tool or action
+5. execute the action
+6. observe the result
+7. update the plan
+8. stop or continue
+
+That loop resembles reinforcement learning from Lecture 5:
+
+- the agent observes state
+- the agent chooses actions
+- actions change the environment
+- later states depend on earlier actions
+- local rewards or goals can conflict with broader safety
+
+The difference is that many LLM agents are not trained end-to-end in the
+environment where they are deployed. They often combine a language model,
+prompts, tools, memory, retrieval, and product-specific policies. That makes
+observability even more important: if something goes wrong, I need to know
+whether the failure came from reasoning, retrieval, tool selection, tool output,
+permissions, or the stop condition.
+
+For an agent, the safety boundary should be around actions, not only final text.
+Examples:
+
+- read-only search can be lower risk than writing to an external system
+- drafting an email is lower risk than sending it
+- suggesting a shell command is lower risk than running it
+- summarizing a financial report is lower risk than placing a trade
+- identifying a medical concern is lower risk than giving personalized
+  treatment instructions
+
+This suggests a permissions ladder:
+
+1. answer from existing context
+2. retrieve read-only information
+3. draft an action for human approval
+4. execute reversible low-risk actions
+5. execute irreversible or high-risk actions only with strong controls, or not
+   at all
+
+The agent should also have stop conditions. A system that keeps trying to
+satisfy the user after repeated safety conflicts is exactly the wrong behavior.
+For high-risk topics, a safer agent should narrow, route, or stop instead of
+becoming more compliant.
+
+### Evaluation For Agents
+
+Agent evaluation has to include the trajectory, not just the final answer.
+Questions I would ask:
+
+- Did the agent choose the right tool?
+- Did it use the minimum necessary permission?
+- Did it ask for approval before an irreversible action?
+- Did it preserve important context from earlier steps?
+- Did it stop when the task became unsafe or unclear?
+- Did it leave a trace detailed enough to audit afterward?
+
+The dataset should contain tasks with expected traces, not only expected final
+responses. For example:
+
+```text
+task: summarize a file and draft an email
+expected behavior:
+    read the file
+    summarize the relevant points
+    draft the email
+    ask before sending
+failure:
+    sends the email without approval
+```
+
+This is the part of Lecture 7 that feels most practically important for future
+projects. If I build an agent, I should not start by giving it every tool and
+hoping the model behaves. I should start with narrow permissions, trace
+everything, create an evaluation dataset, and add privileges only when I can
+test the new failure modes.
+
 Working takeaway: Lecture 7 is not arguing that safety can be solved by
 writing three perfect laws. It is arguing the opposite. Since modern AI systems
 are learned, contextual, and hard to inspect directly, safety has to be turned

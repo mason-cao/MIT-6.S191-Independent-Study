@@ -30,7 +30,7 @@ schedule I am using for the study log:
 | Lecture 5: Deep Reinforcement Learning | Apr. 27, 2026 | RL notes rewritten through DQN, policy gradients, and actor-critic |
 | Lecture 6: New Frontiers | May 4, 2026 | Frontier-model notes rewritten |
 | Software Lab 3: Fine-Tune an LLM, You Must! | After Lecture 6 | Local LLM fine-tuning mechanics pass complete |
-| Lecture 7: The Three Laws of AI | May 11, 2026 | Full-material notes in progress: safety framing, traces, datasets, metrics, and experiments |
+| Lecture 7: The Three Laws of AI | May 11, 2026 | Full-material notes in progress: safety framing, evaluation, long-context safety drift, and agents |
 | Lecture 8: AI for Science | May 18, 2026 | Full materials open; next lecture to start |
 | Lecture 9: Secrets to Massively Parallel Training | May 25, 2026 | Full materials open; notes pending |
 
@@ -56,7 +56,7 @@ I plan to keep updating this as I finish each official lab, re-implement section
 | [x] Lecture 4: Deep Generative Modeling | Generative modeling and DB-VAE notes rewritten |
 | [x] Lecture 5: Deep Reinforcement Learning | RL notes rewritten through DQN, policy gradients, actor-critic, simulation, and AlphaGo/AlphaZero |
 | [x] Lecture 6: Language Models and New Frontiers | Frontier notes rewritten across limitations, diffusion, protein generation, LLMs, scaling, and foundation models |
-| [ ] Lecture 7: The Three Laws of AI | In progress: safety framing, traces, datasets, metrics, and experiments notes added |
+| [ ] Lecture 7: The Three Laws of AI | In progress: safety framing, evaluation, long-context safety drift, and agents notes added |
 | [ ] Lecture 8: AI for Science | Full materials open; next lecture to start |
 | [ ] Lecture 9: Secrets to Massively Parallel Training | Full materials open; notes pending |
 
